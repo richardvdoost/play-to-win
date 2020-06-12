@@ -4,7 +4,17 @@ from .synapse_cluster import SynapseCluster
 
 
 class Brain:
+    """
+    Artificial Neural Network
+    """
+
     def __init__(self, topology):
+        """
+        Args:
+            topology: Tuple of tuples describing each layer of the network with a size and transfer function object
+                Input layer can't have a transfer function, so providing None is fine
+                Output layer should have a ReLU transfer function for gradient calculation to work properly
+        """
 
         # Initialize target output Y (store X and H in layers)
         self.Y = np.zeros((1, topology[-1][0]))
@@ -27,6 +37,13 @@ class Brain:
                 self.synapse_clusters.append(SynapseCluster(surrounding_neuron_layers))
 
     def train(self, data, iteration_count):
+        """
+        Train the network on some training data for a number of iterations
+        
+        Args:
+            data (tuple): Tuple of dictionaries with an 'x' and 'y' key that hold training data
+            iteration_count (int): Numer of iterations to run on the training data
+        """
 
         print(f"\n\n== Training batch of {len(data)} training samples in {iteration_count} iterations ==\n")
 
@@ -68,6 +85,10 @@ class Brain:
         return np.sum(J) / self.Y.shape[0]
 
     def validate_weight_gradients(self):
+        """
+        Check if the computed gradients of the weights are correct
+        """
+
         print("\n\n== Validating gradients ==\n")
 
         self.forward_prop()
@@ -81,7 +102,7 @@ class Brain:
             for i in range(rows):
                 for j in range(cols):
 
-                    # Nudge the weight up and down and calculate the cost
+                    # Nudge the weight up and down and calculate the cost difference
                     orig_weight = cluster.weights[i, j]
                     costs = []
                     for nudge in (-nudge_size, nudge_size):
@@ -90,12 +111,17 @@ class Brain:
                         costs.append(self.cost())
 
                     est_gradient = (costs[1] - costs[0]) / (2 * nudge_size)
-                    diff_percent = abs(
-                        (est_gradient - cluster.weight_gradients[i, j]) / max(1e8, cluster.weight_gradients[i, j]) * 100
+                    diff_percent = (
+                        abs(est_gradient - cluster.weight_gradients[i, j])
+                        / max(1e-8, abs(cluster.weight_gradients[i, j]))
+                        * 100
                     )
 
                     print(
-                        f"  weight[{i},{j}]: {cluster.weights[i, j]:7.3f} - gradient: {cluster.weight_gradients[i, j]:9.6f} - validation: {est_gradient:9.6f} - difference: {diff_percent:9.6f}%"
+                        f"  weight[{i},{j}]: {cluster.weights[i, j]:7.3f} "
+                        f"- gradient: {cluster.weight_gradients[i, j]:9.6f} "
+                        f"- validation: {est_gradient:9.6f} "
+                        f"- difference: {diff_percent:9.6f}%"
                     )
 
                     # Restore the original weight! 😱

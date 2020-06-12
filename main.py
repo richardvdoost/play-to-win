@@ -16,7 +16,5 @@ training_data = (
 )
 
 my_brain = Brain(brain_topology)
-
 my_brain.train(training_data, 1000)
-
 my_brain.validate_weight_gradients()

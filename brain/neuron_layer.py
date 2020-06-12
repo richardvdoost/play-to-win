@@ -1,10 +1,18 @@
-# Represents a layer of neurons in the network
-
 import numpy as np
 
 
 class NeuronLayer:
+    """
+    Represents a layer of neurons in the network
+    """
+
     def __init__(self, length, activation_function):
+        """
+        Args:
+            length: Number of neurons in the layer
+            activation_function (ActivationFunction, None): Activation function object with a activate(x) and
+                gradient(x) methods. If this is the input layer of the network, activation function can be None.
+        """
 
         # Properties that can't be changed after layer creation
         self.__length = length
