@@ -20,9 +20,9 @@ class NeuronLayer:
 
         # Initialize different neuron values we need
         shape = (1, self.__length)
-        self.__Z = np.zeros(shape)
-        self.__A = np.zeros(shape)
-        self.__Delta = np.zeros(shape)
+        self.__logit = np.zeros(shape)
+        self.__output = np.zeros(shape)
+        self.__delta = np.zeros(shape)
 
         # Set these later
         self.synapses_right = self.synapses_left = None
@@ -32,7 +32,7 @@ class NeuronLayer:
         self.activate()
 
     def activate(self):
-        self.A = self.__activation_function.activate(self.Z)
+        self.output = self.__activation_function.activate(self.logit)
 
     def back_prop(self):
         self.synapses_right.calculate_gradients()
@@ -41,45 +41,45 @@ class NeuronLayer:
             self.gradient()
 
     def gradient(self):
-        self.Delta = self.neurons_right.Delta.dot(self.synapses_right.weights)[
+        self.delta = self.neurons_right.delta.dot(self.synapses_right.weights)[
             :, 1:
-        ] * self.__activation_function.gradient(self.Z)
+        ] * self.__activation_function.gradient(self.logit)
 
     @property
-    def Z(self):
-        return self.__Z
+    def logit(self):
+        return self.__logit
 
     @property
-    def A(self):
-        return self.__A
+    def output(self):
+        return self.__output
 
     @property
-    def A_with_bias(self):
-        bias_col = np.ones((self.__A.shape[0], 1))
-        return np.append(bias_col, self.__A, axis=1)
+    def output_with_bias(self):
+        bias_col = np.ones((self.output.shape[0], 1))
+        return np.append(bias_col, self.output, axis=1)
 
     @property
-    def Delta(self):
-        return self.__Delta
+    def delta(self):
+        return self.__delta
 
     @property
     def neurons_right(self):
         return self.synapses_right.neurons_right if self.synapses_right is not None else None
 
-    @Z.setter
-    def Z(self, Z):
-        assert Z.shape[1] == self.__length
-        self.__Z = Z
+    @logit.setter
+    def logit(self, logit):
+        assert logit.shape[1] == self.__length
+        self.__logit = logit
 
-    @A.setter
-    def A(self, A):
-        assert A.shape[1] == self.__length
-        self.__A = A
+    @output.setter
+    def output(self, output):
+        assert output.shape[1] == self.__length
+        self.__output = output
 
-    @Delta.setter
-    def Delta(self, Delta):
-        assert Delta.shape[1] == self.__length
-        self.__Delta = Delta
+    @delta.setter
+    def delta(self, delta):
+        assert delta.shape[1] == self.__length
+        self.__delta = delta
 
     def __len__(self):
         return self.__length

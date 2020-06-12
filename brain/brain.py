@@ -16,8 +16,8 @@ class Brain:
                 Output layer should have a ReLU transfer function for gradient calculation to work properly
         """
 
-        # Initialize target output Y (store X and H in layers)
-        self.Y = np.zeros((1, topology[-1][0]))
+        # Initialize target output (store input and output in layers)
+        self.target = np.zeros((1, topology[-1][0]))
 
         # Create the neuron layers and synapse clusters (connections)
         self.neuron_layers = []
@@ -48,8 +48,8 @@ class Brain:
         print(f"\n\n== Training batch of {len(data)} training samples in {iteration_count} iterations ==\n")
 
         # Convert training data to NumPy matrices
-        self.X = np.array([sample["x"] for sample in data])
-        self.Y = np.array([sample["y"] for sample in data])
+        self.input = np.array([sample["x"] for sample in data])
+        self.target = np.array([sample["y"] for sample in data])
 
         # Start the training
         for i in range(iteration_count):
@@ -62,17 +62,17 @@ class Brain:
 
             self.optimize_weights()
 
-        print("\nY:")
-        print(self.Y)
-        print("\nH:")
-        print(self.H)
+        print("\ntarget:")
+        print(self.target)
+        print("\noutput:")
+        print(self.output)
 
     def forward_prop(self):
         for layer in self.neuron_layers[1:]:
             layer.forward_prop()
 
     def back_prop(self):
-        self.output_layer.Delta = self.H - self.Y
+        self.output_layer.delta = self.output - self.target  # Only works for sigmoid layers
         for layer in reversed(self.neuron_layers[:-1]):
             layer.back_prop()
 
@@ -81,12 +81,13 @@ class Brain:
             synapse_cluster.optimize_weights()
 
     def cost(self):
-        J = -1 * self.Y * np.log(self.H) - (1 - self.Y) * np.log(1 - self.H)
-        return np.sum(J) / self.Y.shape[0]
+        J = -1 * self.target * np.log(self.output) - (1 - self.target) * np.log(1 - self.output)
+        return np.sum(J) / self.target.shape[0]
 
     def validate_weight_gradients(self):
         """
         Check if the computed gradients of the weights are correct
+        TODO: Move this to a test 
         """
 
         print("\n\n== Validating gradients ==\n")
@@ -95,8 +96,8 @@ class Brain:
         self.back_prop()
 
         nudge_size = 1e-4
-        for cluster_i, cluster in enumerate(self.synapse_clusters):
-            print(f"Synapse cluster #{cluster_i + 1}")
+        for index, cluster in enumerate(self.synapse_clusters):
+            print(f"Synapse cluster #{index + 1}")
 
             rows, cols = cluster.weights.shape
             for i in range(rows):
@@ -138,13 +139,13 @@ class Brain:
         return self.neuron_layers[-1]
 
     @property
-    def X(self):
-        return self.input_layer.A
+    def input(self):
+        return self.input_layer.output
 
     @property
-    def H(self):
-        return self.output_layer.A
+    def output(self):
+        return self.output_layer.output
 
-    @X.setter
-    def X(self, X):
-        self.input_layer.A = X
+    @input.setter
+    def input(self, input):
+        self.input_layer.output = input

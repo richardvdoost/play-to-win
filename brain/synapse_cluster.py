@@ -16,11 +16,11 @@ class SynapseCluster:
         self.weight_gradients = np.zeros(weight_matrix_shape)
 
     def forward_prop(self):
-        self.neurons_right.Z = self.neurons_left.A_with_bias.dot(self.weights.T)
+        self.neurons_right.logit = self.neurons_left.output_with_bias.dot(self.weights.T)
 
     def calculate_gradients(self):
-        m = self.neurons_left.A.shape[0]
-        self.weight_gradients = self.neurons_right.Delta.T.dot(self.neurons_left.A_with_bias) / m
+        m = self.neurons_left.output.shape[0]
+        self.weight_gradients = self.neurons_right.delta.T.dot(self.neurons_left.output_with_bias) / m
 
     def optimize_weights(self):
         self.weights -= self.weight_gradients
