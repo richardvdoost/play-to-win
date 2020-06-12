@@ -60,8 +60,8 @@ class Brain:
             layer.back_prop()
 
     def optimize_weights(self):
-        for layer in self.neuron_layers[1:]:
-            layer.synapses_left.optimize_weights()
+        for synapse_cluster in self.synapse_clusters:
+            synapse_cluster.optimize_weights()
 
     def cost(self):
         J = -1 * self.Y * np.log(self.H) - (1 - self.Y) * np.log(1 - self.H)
