@@ -33,8 +33,9 @@ class NeuronLayer:
             self.gradient()
 
     def gradient(self):
-        self.Delta = self.neurons_right.Delta.dot(
-            self.synapses_right.weights)[:, 1:] * self.__activation_function.gradient(self.Z)
+        self.Delta = self.neurons_right.Delta.dot(self.synapses_right.weights)[
+            :, 1:
+        ] * self.__activation_function.gradient(self.Z)
 
     @property
     def Z(self):

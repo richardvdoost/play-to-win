@@ -4,7 +4,6 @@ from .synapse_cluster import SynapseCluster
 
 
 class Brain:
-
     def __init__(self, topology):
 
         # Initialize target output Y (store X and H in layers)
@@ -15,26 +14,25 @@ class Brain:
         self.synapse_clusters = []
         for layer_length, activation_function in topology:
 
-            self.neuron_layers.append(
-                NeuronLayer(layer_length, activation_function))
+            self.neuron_layers.append(NeuronLayer(layer_length, activation_function))
 
             # Create a synapse cluster only after we have more than one neuron layers
             if len(self.neuron_layers) > 1:
 
                 surrounding_neuron_layers = (
                     self.neuron_layers[-2],
-                    self.neuron_layers[-1])
+                    self.neuron_layers[-1],
+                )
 
-                self.synapse_clusters.append(
-                    SynapseCluster(surrounding_neuron_layers))
+                self.synapse_clusters.append(SynapseCluster(surrounding_neuron_layers))
 
     def train(self, data, iteration_count):
 
         print(f"\n\n== Training batch of {len(data)} training samples in {iteration_count} iterations ==\n")
 
         # Convert training data to NumPy matrices
-        self.X = np.array([sample['x'] for sample in data])
-        self.Y = np.array([sample['y'] for sample in data])
+        self.X = np.array([sample["x"] for sample in data])
+        self.Y = np.array([sample["y"] for sample in data])
 
         # Start the training
         for i in range(iteration_count):
@@ -43,13 +41,13 @@ class Brain:
 
             cost = self.cost()
             if i % max(1, iteration_count // 20) == 0:
-                print('cost:', round(cost, 3))
+                print("cost:", round(cost, 3))
 
             self.optimize_weights()
 
-        print('\nY:')
+        print("\nY:")
         print(self.Y)
-        print('\nH:')
+        print("\nH:")
         print(self.H)
 
     def forward_prop(self):
@@ -68,7 +66,7 @@ class Brain:
     def cost(self):
         J = -1 * self.Y * np.log(self.H) - (1 - self.Y) * np.log(1 - self.H)
         return np.sum(J) / self.Y.shape[0]
-    
+
     def validate_weight_gradients(self):
         print("\n\n== Validating gradients ==\n")
 
@@ -90,11 +88,15 @@ class Brain:
                         cluster.weights[i, j] = orig_weight + nudge
                         self.forward_prop()
                         costs.append(self.cost())
-                    
-                    est_gradient = (costs[1] - costs[0]) / (2 * nudge_size)
-                    diff_percent = abs((est_gradient - cluster.weight_gradients[i, j]) / max(1e8, cluster.weight_gradients[i, j]) * 100)
 
-                    print(f"  weight[{i},{j}]: {cluster.weights[i, j]:7.3f} - gradient: {cluster.weight_gradients[i, j]:9.6f} - validation: {est_gradient:9.6f} - difference: {diff_percent:9.6f}%")
+                    est_gradient = (costs[1] - costs[0]) / (2 * nudge_size)
+                    diff_percent = abs(
+                        (est_gradient - cluster.weight_gradients[i, j]) / max(1e8, cluster.weight_gradients[i, j]) * 100
+                    )
+
+                    print(
+                        f"  weight[{i},{j}]: {cluster.weights[i, j]:7.3f} - gradient: {cluster.weight_gradients[i, j]:9.6f} - validation: {est_gradient:9.6f} - difference: {diff_percent:9.6f}%"
+                    )
 
                     # Restore the original weight! 😱
                     cluster.weights[i, j] = orig_weight

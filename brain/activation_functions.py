@@ -48,7 +48,7 @@ class Sigmoid(ActivationFunction):
 
 
 # Testing
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     test_values = [-5, -1, -0.5, 0, 0.5, 1, 5]
 
@@ -56,6 +56,6 @@ if __name__ == '__main__':
     activation_functions = (Identity, ReLU, Sigmoid)
 
     for f in activation_functions:
-        print('    ', f.__name__, '\b(', x, ') =', f.activate(x))
-        print('d/dx', f.__name__, '\b(', x, ') =', f.gradient(x))
+        print("    ", f.__name__, "\b(", x, ") =", f.activate(x))
+        print("d/dx", f.__name__, "\b(", x, ") =", f.gradient(x))
         print()
