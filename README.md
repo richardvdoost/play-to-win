@@ -4,8 +4,7 @@ Playing around with some reinforcement learning concepts in Python.
 
 ## Requirements
 
-- Python 3 `python3`
-- NumPy `numpy`
+- NumPy
 
 Installing Numpy:
 
