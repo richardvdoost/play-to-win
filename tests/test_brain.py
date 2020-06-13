@@ -16,10 +16,10 @@ def test_brain_weight_gradients_sigmoid():
         (1, Sigmoid),
     )
 
-    # Make sure the difference between analytical and numerical calculation is less than 0.1%
+    # Make sure the difference between analytical and numerical calculation is less than 0.01%
     test_brain = Brain(brain_topology)
     diff_percentages = validate_weight_gradients(test_brain, test_samples)
-    assert max(diff_percentages) < 0.1
+    assert max(diff_percentages) < 0.01
 
 
 def test_brain_weight_gradients_relu_sigmoid():
@@ -29,10 +29,10 @@ def test_brain_weight_gradients_relu_sigmoid():
         (1, Sigmoid),
     )
 
-    # Make sure the difference between analytical and numerical calculation is less than 0.1%
+    # Make sure the difference between analytical and numerical calculation is less than 0.01%
     test_brain = Brain(brain_topology)
     diff_percentages = validate_weight_gradients(test_brain, test_samples)
-    assert max(diff_percentages) < 0.1
+    assert max(diff_percentages) < 0.01
 
 
 def test_brain_weight_gradients_identity_sigmoid():
@@ -42,10 +42,10 @@ def test_brain_weight_gradients_identity_sigmoid():
         (1, Sigmoid),
     )
 
-    # Make sure the difference between analytical and numerical calculation is less than 0.1%
+    # Make sure the difference between analytical and numerical calculation is less than 0.01%
     test_brain = Brain(brain_topology)
     diff_percentages = validate_weight_gradients(test_brain, test_samples)
-    assert max(diff_percentages) < 0.1
+    assert max(diff_percentages) < 0.01
 
 
 def test_brain_weight_gradients_deep_mix():
@@ -57,13 +57,28 @@ def test_brain_weight_gradients_deep_mix():
         (1, Sigmoid),
     )
 
-    # Make sure the difference between analytical and numerical calculation is less than 0.1%
+    # Make sure the difference between analytical and numerical calculation is less than 0.01%
     test_brain = Brain(brain_topology)
     diff_percentages = validate_weight_gradients(test_brain, test_samples)
-    assert max(diff_percentages) < 0.1
+    assert max(diff_percentages) < 0.01
 
 
-def validate_weight_gradients(brain, samples, verbose=False):
+def test_brain_weight_gradients_regularization():
+    brain_topology = (
+        (2, None),
+        (3, Identity),
+        (4, Sigmoid),
+        (3, ReLU),
+        (1, Sigmoid),
+    )
+
+    # Make sure the difference between analytical and numerical calculation is less than 0.01%
+    test_brain = Brain(brain_topology, 0.5)
+    diff_percentages = validate_weight_gradients(test_brain, test_samples)
+    assert max(diff_percentages) < 0.01
+
+
+def validate_weight_gradients(brain, samples):
 
     # Initialize input and target of the network
     brain.convert_training_samples(samples)
@@ -100,13 +115,12 @@ def validate_weight_gradients(brain, samples, verbose=False):
                 )
                 diff_percentages.append(diff_percent)
 
-                if verbose:
-                    print(
-                        f"  weight[{i},{j}]: {cluster.weights[i, j]:7.3f} "
-                        f"- gradient: {cluster.weight_gradients[i, j]:9.6f} "
-                        f"- validation: {est_gradient:9.6f} "
-                        f"- difference: {diff_percent:9.6f}%"
-                    )
+                print(
+                    f"  weight[{i},{j}]: {cluster.weights[i, j]:7.3f} "
+                    f"- gradient: {cluster.weight_gradients[i, j]:9.6f} "
+                    f"- validation: {est_gradient:9.6f} "
+                    f"- difference: {diff_percent:9.6f}%"
+                )
 
                 # Restore the original weight! 😱
                 cluster.weights[i, j] = orig_weight
