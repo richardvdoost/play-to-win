@@ -1,6 +1,6 @@
-# python-rl
+# AI Dabble
 
-Playing around with some reinforcement learning concepts in Python.
+Playing around with some AI concepts in Python.
 
 ## Requirements
 
