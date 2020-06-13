@@ -14,7 +14,7 @@ training_data = (
     {"input": (1, 1), "target": (0,)},
 )
 
-my_brain = Brain(brain_topology)
-my_brain.train(training_data, 500)
+my_brain = Brain(brain_topology, learning_rate=0.4, momentum=0.8)
+my_brain.train(training_data, 1000)
 
 print(my_brain)

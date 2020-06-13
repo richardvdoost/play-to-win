@@ -23,6 +23,7 @@ class SynapseCluster:
         weight_matrix_shape = (len(self.neurons_right), len(self.neurons_left) + 1)  # +1 for bias neuron 👍
 
         self.weights = (np.random.random_sample(weight_matrix_shape) - 0.5) * 2
+        self.weight_deltas = np.zeros(weight_matrix_shape)
         self.weight_gradients = np.zeros(weight_matrix_shape)
 
     def forward_prop(self):
@@ -35,11 +36,25 @@ class SynapseCluster:
             self.weight_gradients[:, 1:] += self.regularization_factor * self.weights[:, 1:]
 
     def optimize_weights(self):
-        self.weights -= self.weight_gradients
+        deltas = self.learning_rate * self.weight_gradients
+
+        if self.momentum is not None:
+            deltas += self.momentum * self.weight_deltas
+
+        self.weight_deltas = deltas
+        self.weights -= self.weight_deltas
 
     @property
     def batch_size(self):
         return self.__brain.batch_size
+
+    @property
+    def learning_rate(self):
+        return self.__brain.learning_rate
+
+    @property
+    def momentum(self):
+        return self.__brain.momentum
 
     @property
     def regularization_factor(self):

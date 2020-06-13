@@ -15,7 +15,7 @@ class Brain:
     represented by a NumPy matrix.
     """
 
-    def __init__(self, topology, regularization=None):
+    def __init__(self, topology, learning_rate=0.5, momentum=None, regularization=None):
         """
         Args:
             topology ((int, TransferFunction | None), ...): Describes each layer of the network with a lenght for the
@@ -45,6 +45,8 @@ class Brain:
                 self.synapse_clusters.append(SynapseCluster(self, surrounding_neuron_layers))
                 self.__non_bias_weights_count += len(surrounding_neuron_layers[0]) * len(surrounding_neuron_layers[1])
 
+        self.learning_rate = learning_rate
+        self.momentum = momentum
         self.__regularization = regularization
         self.__regularization_factor = regularization
         self.__batch_size = 1
