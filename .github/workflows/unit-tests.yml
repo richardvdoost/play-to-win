@@ -1,13 +1,13 @@
 # This workflow will install Python dependencies and run tests with a single version of Python
 
-name: Python Unit Tests
+name: Unit Tests
 
 on:
   push:
     branches: [ master ]
 
 jobs:
-  build:
+  run-unit-tests:
 
     runs-on: ubuntu-latest
 
