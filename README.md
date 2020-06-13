@@ -4,11 +4,7 @@ Playing around with some AI concepts in Python.
 
 ## Requirements
 
-- NumPy
-
-Installing Numpy:
-
-`pip3 install numpy`
+- NumPy: `pip3 install numpy`
 
 ## Usage
 
