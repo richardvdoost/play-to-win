@@ -2,9 +2,7 @@
 
 name: unit-tests
 
-on:
-  push:
-    branches: [ master ]
+on: [push]
 
 jobs:
   run-unit-tests:
