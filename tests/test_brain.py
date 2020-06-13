@@ -9,10 +9,6 @@ test_samples = (
 )
 
 
-def test_to_fail():
-    assert False
-
-
 def test_brain_weight_gradients_sigmoid():
     brain_topology = (
         (2, None),
