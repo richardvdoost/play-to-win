@@ -1,5 +1,7 @@
 # AI Dabble
 
+![unit-tests](https://github.com/richardvdoost/ai-dabble/workflows/unit-tests/badge.svg)
+
 Playing around with some AI concepts in Python.
 
 ## Requirements
@@ -9,6 +11,12 @@ Playing around with some AI concepts in Python.
 
 ## Usage
 
-Run the main program
+Run the main program:
 
 `python3 main.py`
+
+## Testing
+
+Run some unit tests to see if everything still works:
+
+`pytest`
