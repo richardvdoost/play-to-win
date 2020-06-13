@@ -1,6 +1,8 @@
 from brain import Brain
 from brain.activation_functions import Identity, ReLU, Sigmoid, Softplus
 
+from games import TicTacToe
+
 brain_topology = (
     (2, None),
     (2, Softplus),
@@ -18,3 +20,13 @@ my_brain = Brain(brain_topology, learning_rate=0.4, momentum=0.8)
 my_brain.train(training_data, 1000)
 
 print(my_brain)
+
+players = (
+    # DeepQPlayer(),
+    # RandomPlayer(),
+)
+
+tictactoe_game = TicTacToe(players)
+# tictactoe_game.play(2)
+
+# print(tictactoe_game)
