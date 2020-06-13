@@ -6,18 +6,23 @@ from .synapse_cluster import SynapseCluster
 class Brain:
     """
     Artificial Neural Network
+
+    The Brain consists of L NeuronLayers and L-1 SynapseClusters, specified by the topology.
+
+    NeuronLayers are connected through SynapseClusters which hold the individual connections/weights.
+
+    All connections/weights between two NeuronLayers are grouped together in a SynapseCluster so that they can be
+    represented by a NumPy matrix.
     """
 
     def __init__(self, topology):
         """
         Args:
-            topology: Tuple of tuples describing each layer of the network with a size and transfer function object
-                Input layer can't have a transfer function, so providing None is fine
-                Output layer should have a ReLU transfer function for gradient calculation to work properly
+            topology ((int, TransferFunction|None), ...): Describes each layer of the network with a lenght for the
+                layer (amount of neurons) and a transfer function object for the neurons in the layer. The input layer
+                can't have a transfer function, so providing None is fine. The output layer should have a ReLU transfer
+                function for weight gradient calculation to work properly with the current cost function.
         """
-
-        # Initialize target output (store input and output in layers)
-        self.target = np.zeros((1, topology[-1][0]))
 
         # Create the neuron layers and synapse clusters (connections)
         self.neuron_layers = []
@@ -36,36 +41,48 @@ class Brain:
 
                 self.synapse_clusters.append(SynapseCluster(surrounding_neuron_layers))
 
-    def train(self, data, iteration_count):
+        # Initialize the output target (Y)
+        self.target = np.zeros((1, topology[-1][0]))
+
+    def train(self, training_samples, iteration_count):
         """
-        Train the network on some training data for a number of iterations
+        Train the network on some training samples for a number of iterations
         
         Args:
             data (tuple): Tuple of dictionaries with an 'x' and 'y' key that hold training data
             iteration_count (int): Numer of iterations to run on the training data
         """
 
-        print(f"\n\n== Training batch of {len(data)} training samples in {iteration_count} iterations ==\n")
+        print(f"\n\n== Training batch of {len(training_samples)} training samples in {iteration_count} iterations ==\n")
 
-        # Convert training data to NumPy matrices
-        self.input = np.array([sample["x"] for sample in data])
-        self.target = np.array([sample["y"] for sample in data])
+        self.convert_training_samples(training_samples)
 
-        # Start the training
+        # Start the training iterations
         for i in range(iteration_count):
             self.forward_prop()
             self.back_prop()
 
-            cost = self.cost()
+            # Print the progress (cost) 20 times during the training
             if i % max(1, iteration_count // 20) == 0:
+                cost = self.cost()
                 print("cost:", round(cost, 3))
 
             self.optimize_weights()
 
+        # Print the end result
         print("\ntarget:")
         print(self.target)
         print("\noutput:")
         print(self.output)
+
+    def convert_training_samples(self, training_samples):
+        """ Convert training data to NumPy matrices and initialize the input (X) and target (Y) of the network """
+
+        assert len(training_samples[0]["input"]) == len(self.input_layer)
+        assert len(training_samples[0]["target"]) == len(self.output_layer)
+
+        self.input = np.array([sample["input"] for sample in training_samples])
+        self.target = np.array([sample["target"] for sample in training_samples])
 
     def forward_prop(self):
         for layer in self.neuron_layers[1:]:
@@ -83,52 +100,6 @@ class Brain:
     def cost(self):
         J = -1 * self.target * np.log(self.output) - (1 - self.target) * np.log(1 - self.output)
         return np.sum(J) / self.target.shape[0]
-
-    def validate_weight_gradients(self):
-        """
-        Check if the computed gradients of the weights are correct
-        TODO: Move this to a test 
-        """
-
-        print("\n\n== Validating gradients ==\n")
-
-        self.forward_prop()
-        self.back_prop()
-
-        nudge_size = 1e-4
-        for index, cluster in enumerate(self.synapse_clusters):
-            print(f"Synapse cluster #{index + 1}")
-
-            rows, cols = cluster.weights.shape
-            for i in range(rows):
-                for j in range(cols):
-
-                    # Nudge the weight up and down and calculate the cost difference
-                    orig_weight = cluster.weights[i, j]
-                    costs = []
-                    for nudge in (-nudge_size, nudge_size):
-                        cluster.weights[i, j] = orig_weight + nudge
-                        self.forward_prop()
-                        costs.append(self.cost())
-
-                    est_gradient = (costs[1] - costs[0]) / (2 * nudge_size)
-                    diff_percent = (
-                        abs(est_gradient - cluster.weight_gradients[i, j])
-                        / max(1e-8, abs(cluster.weight_gradients[i, j]))
-                        * 100
-                    )
-
-                    print(
-                        f"  weight[{i},{j}]: {cluster.weights[i, j]:7.3f} "
-                        f"- gradient: {cluster.weight_gradients[i, j]:9.6f} "
-                        f"- validation: {est_gradient:9.6f} "
-                        f"- difference: {diff_percent:9.6f}%"
-                    )
-
-                    # Restore the original weight! 😱
-                    cluster.weights[i, j] = orig_weight
-
-            print()
 
     @property
     def input_layer(self):

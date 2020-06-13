@@ -9,22 +9,19 @@ class NeuronLayer:
     def __init__(self, length, activation_function):
         """
         Args:
-            length: Number of neurons in the layer
+            length (int): Number of neurons in the layer
             activation_function (ActivationFunction, None): Activation function object with a activate(x) and
                 gradient(x) methods. If this is the input layer of the network, activation function can be None.
         """
 
-        # Properties that can't be changed after layer creation
         self.__length = length
         self.__activation_function = activation_function
 
-        # Initialize different neuron values we need
         shape = (1, self.__length)
         self.__logit = np.zeros(shape)
         self.__output = np.zeros(shape)
         self.__delta = np.zeros(shape)
 
-        # Set these later
         self.synapses_right = self.synapses_left = None
 
     def forward_prop(self):

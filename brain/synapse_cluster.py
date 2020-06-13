@@ -1,10 +1,17 @@
-# Describes a set of synapses (connections) between 2 layers of neurons
-
 import numpy as np
 
 
 class SynapseCluster:
+    """
+    Describes a set of synapses (connections) between 2 layers of neurons
+    """
+
     def __init__(self, surrounding_neuron_layers):
+        """
+        Args:
+            surrounding_neuron_layers (NeuronLayer, NeuronLayer): The neuron layers that surround the current synapse
+                cluster on the left and right side respectively.
+        """
 
         # References to neighbours
         self.neurons_left, self.neurons_right = surrounding_neuron_layers
