@@ -47,6 +47,16 @@ class Sigmoid(ActivationFunction):
         return activate * (1 - activate)
 
 
+class Softplus(ActivationFunction):
+    @staticmethod
+    def activate(x):
+        return np.log(1 + np.exp(x))
+
+    @staticmethod
+    def gradient(x):
+        return 1 / (1 + np.exp(-1 * x))
+
+
 # Testing
 if __name__ == "__main__":
 

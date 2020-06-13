@@ -1,5 +1,5 @@
 from brain import Brain
-from brain.activation_functions import Identity, ReLU, Sigmoid
+from brain.activation_functions import Identity, ReLU, Sigmoid, Softplus
 
 test_samples = (
     {"input": (0, 0), "target": (0,)},
@@ -35,6 +35,19 @@ def test_brain_weight_gradients_relu_sigmoid():
     assert max(diff_percentages) < 0.01
 
 
+def test_brain_weight_gradients_softplus_sigmoid():
+    brain_topology = (
+        (2, None),
+        (3, Softplus),
+        (1, Sigmoid),
+    )
+
+    # Make sure the difference between analytical and numerical calculation is less than 0.01%
+    test_brain = Brain(brain_topology)
+    diff_percentages = validate_weight_gradients(test_brain, test_samples)
+    assert max(diff_percentages) < 0.01
+
+
 def test_brain_weight_gradients_identity_sigmoid():
     brain_topology = (
         (2, None),
@@ -54,6 +67,7 @@ def test_brain_weight_gradients_deep_mix():
         (3, Identity),
         (4, Sigmoid),
         (3, ReLU),
+        (4, Softplus),
         (1, Sigmoid),
     )
 
@@ -69,11 +83,12 @@ def test_brain_weight_gradients_regularization():
         (3, Identity),
         (4, Sigmoid),
         (3, ReLU),
+        (4, Softplus),
         (1, Sigmoid),
     )
 
     # Make sure the difference between analytical and numerical calculation is less than 0.01%
-    test_brain = Brain(brain_topology, 0.5)
+    test_brain = Brain(brain_topology, regularization=0.5)
     diff_percentages = validate_weight_gradients(test_brain, test_samples)
     assert max(diff_percentages) < 0.01
 

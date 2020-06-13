@@ -35,7 +35,7 @@ class SynapseCluster:
             self.weight_gradients[:, 1:] += self.regularization_factor * self.weights[:, 1:]
 
     def optimize_weights(self):
-        self.weights -= self.weight_gradients * 0.5
+        self.weights -= self.weight_gradients
 
     @property
     def batch_size(self):
