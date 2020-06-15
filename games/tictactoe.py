@@ -7,14 +7,13 @@ class TicTacToe(Game):
     Good old game of tic tac toe, needs 2 players
     """
 
-    def init_state(self):
-        self.state = np.zeros((3, 3)) - 1  # -1 means empty
+    def reset_state(self):
+        self.state = np.zeros((3, 3), dtype=int) - 1  # -1 means empty
 
     def apply_action(self, player_index, action):
-        coordinates = action.nonzero()
-        assert len(coordinates[0]) == 1 and len(coordinates[1]) == 1
-
-        self.state[coordinates] = player_index
+        assert np.count_nonzero(action) == 1  # Allow only one action
+        assert self.state[action] == -1  # Allow only an action on an empty cell
+        self.state[action] = player_index
 
     def has_winner(self):
 
@@ -27,8 +26,8 @@ class TicTacToe(Game):
 
             # Any row has 3 similar spots? Winner
             player_index = self.state[row, 0]
-            if np.all(self.state[row, :] == player_index):
-                self.winner_index = player_index
+            if np.all(self.state[row, 1:] == player_index):
+                self.set_winner(player_index)
                 return True
 
         # Check colums
@@ -39,9 +38,9 @@ class TicTacToe(Game):
                 break
 
             # Any column has 3 similar spots? Winner
-            player_index = self.state[row, 0]
-            if np.all(self.state[:, col] == player_index):
-                self.winner_index = player_index
+            player_index = self.state[0, col]
+            if np.all(self.state[1:, col] == player_index):
+                self.set_winner(player_index)
                 return True
 
         # Check diagonals
@@ -49,9 +48,17 @@ class TicTacToe(Game):
         if player_index == -1:
             return False
 
-        if player_index in (self.state[0, 0], self.state[2, 2]) or player_index in (self.state[0, 2], self.state[2, 0]):
-            self.winner_index = player_index
+        if np.all(self.state[(0, 2), (0, 2)] == player_index) or np.all(self.state[(0, 2), (2, 0)] == player_index):
+            self.set_winner(player_index)
             return True
+
+        return False
+
+    def set_winner(self, winner_index):
+        self.score[winner_index] += 1
+        self.players[winner_index].reward(1)
+        loser_index = (winner_index + 1) % len(self.players)
+        self.players[loser_index].reward(-1)
 
     @property
     def allowed_actions(self):

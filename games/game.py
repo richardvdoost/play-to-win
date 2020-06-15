@@ -10,28 +10,34 @@ class Game(ABC):
         """
 
         self.players = players
+        self.state = None
+        self.active_player_index = 0
 
-        # Give the players a reference to this game
-        for player in self.players:
-            player.set_game(self)
+        self.reset_score()
 
-        self.init_state()
+    def reset_score(self):
+        self.score = [0] * len(self.players)
 
     def play(self, count):
 
         for i in range(count):
-            active_player_index = i % len(self.players)
+
+            self.reset_state()
+            self.active_player_index = i % len(self.players)
 
             while not self.has_finished():
-                action = self.players[active_player_index].take_action()
-                self.apply_action(active_player_index, action)
-                active_player_index = (active_player_index + 1) % len(self.players)
+                action = self.players[self.active_player_index].take_action(self.state, self.allowed_actions)
+                self.apply_action(self.active_player_index, action)
+                self.active_player_index = (self.active_player_index + 1) % len(self.players)
+
+            for player in self.players:
+                player.game_over()
 
     def has_finished(self):
         return self.has_winner() or not self.allowed_actions.any()
 
     @abstractmethod
-    def init_state(self):
+    def reset_state(self):
         pass
 
     @abstractmethod
