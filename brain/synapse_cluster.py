@@ -22,7 +22,7 @@ class SynapseCluster:
 
         weight_matrix_shape = (len(self.neurons_right), len(self.neurons_left) + 1)  # +1 for bias neuron 👍
 
-        self.weights = (np.random.random_sample(weight_matrix_shape) - 0.5) * 2
+        self.weights = np.random.random_sample(weight_matrix_shape) - 0.5
         self.weight_deltas = np.zeros(weight_matrix_shape)
         self.weight_gradients = np.zeros(weight_matrix_shape)
 
