@@ -23,6 +23,7 @@ class PolicyGradientPlayer(Player):
 
         self.episode = []
         self.experiences = []
+        self.is_learning = True
 
     def take_action(self, state, allowed_actions):
 
@@ -60,6 +61,9 @@ class PolicyGradientPlayer(Player):
         self.episode[-1]["value"] += reward
 
     def game_over(self):
+
+        if not self.is_learning:
+            return
 
         self.value_episode_experiences()
 
