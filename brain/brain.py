@@ -52,8 +52,10 @@ class Brain:
         self.__batch_size = 1
         self.target = np.zeros((self.__batch_size, topology[-1][0]))
 
-        # Set some NumPy print options
-        np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
+    def think(self, input_data):
+        self.set_input(input_data)
+        self.forward_prop()
+        return self.output
 
     def train(self, training_samples, iteration_count):
         """
@@ -64,24 +66,24 @@ class Brain:
             iteration_count (int): Numer of iterations to run on the training data
         """
 
-        print(f"\n\n== Training batch of {len(training_samples)} training samples in {iteration_count} iterations ==\n")
+        # print(f"\n\n== Training batch of {len(training_samples)} training samples in {iteration_count} iterations ==\n")
 
         self.convert_training_samples(training_samples)
 
         # Start the training iterations
-        for i in range(iteration_count):
+        for _i in range(iteration_count):
             self.forward_prop()
             self.back_prop()
 
             # Print the progress (cost) 20 times during the training
-            if i % max(1, iteration_count // 20) == 0:
-                cost = self.cost()
-                print("cost:", round(cost, 3))
+            # if i % max(1, iteration_count // 20) == 0:
+            #     cost = self.cost()
+            # print("cost:", round(cost, 3))
 
             self.optimize_weights()
 
-        print(f"\nTarget:\n{self.target}")
-        print(f"\nOutput:\n{self.output}")
+        # print(f"\nTarget:\n{self.target}")
+        # print(f"\nOutput:\n{self.output}")
 
     def convert_training_samples(self, training_samples):
         """ Convert training data to NumPy matrices and initialize the input (X) and target (Y) of the network """
@@ -90,8 +92,11 @@ class Brain:
         assert len(training_samples[0]["target"]) == len(self.output_layer)
 
         self.batch_size = len(training_samples)
-        self.input = np.array([sample["input"] for sample in training_samples])
+        self.set_input(np.array([sample["input"] for sample in training_samples]))
         self.target = np.array([sample["target"] for sample in training_samples])
+
+    def set_input(self, input_data):
+        self.input = input_data - 0.5
 
     def forward_prop(self):
         for layer in self.neuron_layers[1:]:
@@ -106,6 +111,13 @@ class Brain:
         for synapse_cluster in self.synapse_clusters:
             synapse_cluster.optimize_weights()
 
+    def __str__(self):
+        output = "\nBrain Weights:\n\n"
+        for i, synapse_cluster in enumerate(self.synapse_clusters):
+            output += f"Synapse Cluster {i + 1:02}:\n{synapse_cluster.weights}\n\n"
+        return output
+
+    @property
     def cost(self):
         cost_matrix = -1 * self.target * np.log(self.output) - (1 - self.target) * np.log(1 - self.output)
         cost = np.sum(cost_matrix) / self.batch_size
@@ -117,12 +129,6 @@ class Brain:
             cost += self.regularization_factor * 0.5 * total_weights_squared
 
         return cost
-
-    def __str__(self):
-        output = "\nBrain Weights:\n\n"
-        for i, synapse_cluster in enumerate(self.synapse_clusters):
-            output += f"Synapse Cluster {i + 1:02}:\n{synapse_cluster.weights}\n\n"
-        return output
 
     @property
     def input_layer(self):
@@ -159,3 +165,12 @@ class Brain:
     @property
     def regularization_factor(self):
         return self.__regularization_factor
+
+    @property
+    def weight_range(self):
+        min_weight = np.inf
+        max_weight = -np.inf
+        for synapse_cluster in self.synapse_clusters:
+            max_weight = max(max_weight, synapse_cluster.weights.max())
+            min_weight = min(min_weight, synapse_cluster.weights.min())
+        return min_weight, max_weight
