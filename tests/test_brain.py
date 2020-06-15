@@ -120,7 +120,7 @@ def validate_weight_gradients(brain, samples):
                 for nudge in (-nudge_step, nudge_step):
                     cluster.weights[i, j] = orig_weight + nudge
                     brain.forward_prop()
-                    costs.append(brain.cost())
+                    costs.append(brain.cost)
 
                 est_gradient = (costs[1] - costs[0]) / (2 * nudge_step)
                 diff_percent = (
