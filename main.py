@@ -34,30 +34,29 @@ np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 brain_topology = (
     (18, None),
     (48, Softplus),
-    (48, Softplus),
+    (42, Softplus),
     (9, Sigmoid),
 )
 
 try:
-    player_brain = pickle.load(open("brain/saved/player_brain.pickle", "rb"))
+    # player_brain = pickle.load(open("brain/saved/player_brain_new.pickle", "rb"))
+    pre_trained_brain = pickle.load(open("brain/saved/tictactoe_good.pickle", "rb"))
+    opponent = PolicyGradientPlayer(pre_trained_brain)
+    opponent.is_learning = False
 except Exception:
-    player_brain = Brain(brain_topology, learning_rate=0.001, momentum=0.9, regularization=0.05)
+    opponent = RandomPlayer()
+player_brain = Brain(brain_topology, learning_rate=0.01, momentum=0.9, regularization=None)
 
 policy_player = PolicyGradientPlayer(
     player_brain,
     discount_factor=0.90,
-    reward_scale=4,
-    mini_batch_size=512,
+    reward_scale=8,
+    mini_batch_size=256,
     train_iterations=1,
     experience_buffer_size=50000,
 )
 
-players = (
-    policy_player,
-    RandomPlayer(),
-)
-
-tictactoe_game = TicTacToe(players)
+tictactoe_game = TicTacToe((policy_player, opponent))
 
 update_every = 200
 game_count = 0
@@ -72,12 +71,12 @@ while running:
 
         score_tuple = tictactoe_game.score
         score = score_tuple[0] - score_tuple[1]
-        score_diff = (score - prev_score) / prev_score * 100 if prev_score else 0
+        score_diff = (score - prev_score) / abs(prev_score) * 100 if prev_score else 0
         prev_score = score
 
         mean_experience_value = policy_player.mean_experience_value
         mean_experience_value_diff = (
-            (mean_experience_value - prev_mean_experience_value) / prev_mean_experience_value * 100
+            (mean_experience_value - prev_mean_experience_value) / abs(prev_mean_experience_value) * 100
             if prev_mean_experience_value
             else 0.0
         )
@@ -98,11 +97,11 @@ while running:
         # Stop when we have a perfect score (0 losses)
         if score_tuple[1] == 0:
             perfect_score_count += 1
-            if perfect_score_count > 10:
-                print("Played perfectly for 10 batches! You can stop now :)")
+            if perfect_score_count > 3:
+                print("Played perfectly for 3 streaks! You can stop now :)")
                 running = False
 
     except KeyboardInterrupt:
         running = False
 
-pickle.dump(player_brain, open("brain/saved/player_brain.pickle", "wb"))
+pickle.dump(player_brain, open("brain/saved/player_brain_new.pickle", "wb"))
