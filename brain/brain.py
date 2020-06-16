@@ -119,7 +119,7 @@ class Brain:
 
     @property
     def cost(self):
-        cost_matrix = -1 * self.target * np.log(self.output) - (1 - self.target) * np.log(1 - self.output)
+        cost_matrix = -1 * self.target * np.ma.log(self.output) - (1 - self.target) * np.ma.log(1 - self.output)
         cost = np.sum(cost_matrix) / self.batch_size
 
         if self.regularization_factor is not None:
