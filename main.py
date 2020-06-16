@@ -13,31 +13,33 @@ np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 # Hyper parameters
 UPDATE_EVERY = 200
 
-DISCOUNT_FACTOR = 0.5
-REWARD_FACTOR = 1
+DISCOUNT_FACTOR = 0.9
+REWARD_FACTOR = 2
 TRAIN_ITERATIONS = 1
-EXPERIENCE_BATCH_SIZE = 1024
-EXPERIENCE_BUFFER_SIZE = 10 * EXPERIENCE_BATCH_SIZE
+EXPERIENCE_BATCH_SIZE = 256
+EXPERIENCE_BUFFER_SIZE = 8 * EXPERIENCE_BATCH_SIZE
 
 LEARNING_RATE = 0.2
 MOMENTUM = 0.9
-REGULARIZATION = 0.01
+REGULARIZATION = 0.05
 
 BRAIN_TOPOLOGY = (
     (18, None),
-    (96, ReLU),
+    (128, Softplus),
     (9, Sigmoid),
 )
 
-# try:
-# player_brain = pickle.load(open("brain/saved/player_brain_new.pickle", "rb"))
-#     pre_trained_brain = pickle.load(open("brain/saved/tictactoe_good.pickle", "rb"))
-#     opponent = PolicyGradientPlayer(pre_trained_brain)
-#     opponent.is_learning = False
-#     print("Going to play against a pre-trained player!!")
-# except Exception:
-opponent = RandomPlayer()
-player_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, momentum=MOMENTUM, regularization=REGULARIZATION)
+try:
+    player_brain = pickle.load(open("brain/saved/winning-from-more-robust.pickle", "rb",))
+    pre_trained_brain = pickle.load(open("brain/saved/player_brain-beating-ttt-more-robust.pickle", "rb"))
+    opponent = RandomPlayer()
+    # opponent = PolicyGradientPlayer(pre_trained_brain)
+    # opponent.is_learning = False
+    # print("Training against a pre-trained player")
+except Exception:
+    print("Training against a random player")
+    player_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, momentum=MOMENTUM, regularization=REGULARIZATION)
+    opponent = RandomPlayer()
 
 policy_player = PolicyGradientPlayer(
     player_brain,

@@ -34,11 +34,8 @@ class PolicyGradientPlayer(Player):
         for player_index in range(player_count):
             player_states.append(state == player_index)
 
-        # print(f"state: {state}")
-        exploded_state = np.concatenate(player_states) - 0.5  # Make the range [-0.5, 0.5]
-        # print(f"exploded state: {exploded_state}")
+        exploded_state = np.concatenate(player_states) - 0.5
         exploded_state.shape = 1, exploded_state.size
-        # print(f"flat exploded state: {exploded_state}")
 
         allowed_actions_1d = allowed_actions.reshape(1, action_count)
 
@@ -47,13 +44,10 @@ class PolicyGradientPlayer(Player):
         action_probabilities[allowed_actions_1d == False] = 0
         action_probabilities[allowed_actions_1d] += 1e-8  # Prevent division by 0
         choice = self.pick_action(action_probabilities)
-        # print(f"action probablilities: {action_probabilities} - chosen: {choice}")
-
-        # Create a new action matrix
         action = self.create_action_matrix(action_count, choice)
 
         self.episode.append(
-            {"state": exploded_state, "action_probabilities": action_probabilities, "choice": choice, "value": 0,}
+            {"state": exploded_state, "action_probabilities": action_probabilities, "choice": choice, "value": 0}
         )
 
         return action.reshape(allowed_actions.shape)
@@ -66,55 +60,42 @@ class PolicyGradientPlayer(Player):
         if not self.is_learning:
             return
 
-        # print(f"Episode: {self.episode}")
-
-        self.value_episode_experiences()
+        self.process_last_experiences()
 
         if len(self.experiences) < self.experience_batch_size:
             return
 
-        training_data = []
-        for experience in self.get_experience_sample():
+        for batch in self.get_experience_batches():
 
-            # Create X and Y sample for the brain
-            input_values = experience["state"].flatten()
+            training_data = []
+            for experience in batch:
+                training_data.append({"input": experience["state"].flatten(), "target": experience["target"].flatten()})
 
-            # Modify the action probability of the action we took, and take a new sample to determine the label Y for
-            # the current state X. For positive rewards, we want to increase the probability of the action we took, for
-            # negative rewards, we want to decrease the probability.
+            self.brain.train(training_data, self.train_iterations)
 
-            # Multiplying by exp(value) will have the desired behaviour
-
-            updated_action_probabilities = experience["action_probabilities"].copy()
-            updated_action_probabilities[0, experience["choice"]] *= np.exp(self.reward_factor * experience["value"])
-            updated_action_probabilities /= sum(updated_action_probabilities[0, :])
-
-            # After changing the action probabilities, use that as a soft label for training
-            # print(f"Probabilities from experience: {experience['action_probabilities']}")
-            # print(f"Action we took:                {experience['choice']}")
-            # print(f"Value we gave it:              {experience['value']}")
-            # print(f"Updated probabilities:         {updated_action_probabilities}")
-
-            training_data.append({"input": input_values, "target": updated_action_probabilities.flatten()})
-            # print(f"Training data: {training_data}")
-
-        self.brain.train(training_data, self.train_iterations)
-
-    def value_episode_experiences(self):
+    def process_last_experiences(self):
         """
         Go over all experiences in the last episode in reverse order. Assign values to every action taken based on the
         reward gathered (already stored in 'value') and decay with some discount factor. Store the valued experiences.
         """
 
-        last_reward = 0
+        next_experience_value = 0
         for experience in reversed(self.episode):
 
-            experience["value"] += self.discount_factor * last_reward
-            last_reward = experience["value"]
+            experience["value"] += self.discount_factor * next_experience_value
+            next_experience_value = experience["value"]
 
-            # Only remember the experience if it had a significant reward (negative or positive)
-            if -1e-4 < last_reward < 1e-4:
+            # Only remember the experience if it had a significant value (negative or positive)
+            if -1e-4 < experience["value"] < 1e-4:
                 continue
+
+            # Try to figure out what to do when we have a similar experience next time
+            # - Positive value: Increase the probability of our previous choice
+            # - Negative value: Decrease the probability of our previous choice
+            updated_action_probabilities = experience["action_probabilities"].copy()
+            updated_action_probabilities[0, experience["choice"]] *= np.exp(self.reward_factor * experience["value"])
+            updated_action_probabilities /= sum(updated_action_probabilities[0, :])
+            experience["target"] = updated_action_probabilities.flatten()
 
             # If we can add another experience do so, otherwise, replace a random experience
             if len(self.experiences) < self.experience_buffer_size:
@@ -125,21 +106,27 @@ class PolicyGradientPlayer(Player):
 
         self.episode = []
 
-    def get_experience_sample(self):
+    def get_experience_batches(self):
         """
-        Return a random sample of past experiences
+        Return a number of random sample batches of past experiences (for batch gradient descent of the brain)
         """
         experience_count = len(self.experiences)
-        sample_count = min(self.experience_batch_size, experience_count)
-        experience_indexes = np.random.choice(experience_count, sample_count, replace=False)
-        return [self.experiences[i] for i in experience_indexes]
+        experience_indexes = np.random.choice(experience_count, experience_count, replace=False)
+
+        batch_size = min(self.experience_batch_size, experience_count)
+        batches = []
+        for i in range(0, experience_count, batch_size):
+            until = min(i + batch_size, experience_count)
+            experience_indexes_batch = experience_indexes[i:until]
+            batches.append([self.experiences[i] for i in experience_indexes_batch])
+
+        return batches
 
     def pick_action(self, action_probabilities):
         """
         From a set of probabilities (of actions), pick one based on the probability and return the index.
         """
         prob_sum = sum(action_probabilities[0, :])
-        # print(f"Action probabilities: {action_probabilities} - Sum: {prob_sum}")
         action_probabilities /= prob_sum
         return np.random.choice(action_probabilities.size, p=action_probabilities[0, :])
 
@@ -157,7 +144,6 @@ class PolicyGradientPlayer(Player):
 
     @property
     def mean_experience_value(self):
-        # print(f"All experiences: {self.experiences}")
         experience_values = np.array([experience["value"] for experience in self.experiences])
         return experience_values.mean()
 
