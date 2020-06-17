@@ -6,6 +6,11 @@ class SynapseCluster:
     Describes a set of synapses (connections) between 2 layers of neurons
     """
 
+    # Adam algorithm parameters, no need to tweak
+    ADAM_BETA_1 = 0.9
+    ADAM_BETA_2 = 0.999
+    ADAM_EPSILON = 1e-8
+
     def __init__(self, brain, surrounding_neuron_layers):
         """
         Args:
@@ -26,6 +31,8 @@ class SynapseCluster:
         self.weight_deltas = np.zeros(weight_matrix_shape)
         self.weight_gradients = np.zeros(weight_matrix_shape)
 
+        self.adam_m = self.adam_v = self.adam_iterations_count = 0
+
     def forward_prop(self):
         self.neurons_right.logit = self.neurons_left.output_with_bias.dot(self.weights.T)
 
@@ -36,13 +43,21 @@ class SynapseCluster:
             self.weight_gradients[:, 1:] += self.regularization_factor * self.weights[:, 1:]
 
     def optimize_weights(self):
-        deltas = self.learning_rate * self.weight_gradients
+        """
+        Use the Adam algorithm to optimize the weights
+        """
 
-        if self.momentum is not None:
-            deltas += self.momentum * self.weight_deltas
+        self.adam_iterations_count += 1
 
-        self.weight_deltas = deltas
-        self.weights -= self.weight_deltas
+        self.adam_m = self.ADAM_BETA_1 * self.adam_m + (1 - self.ADAM_BETA_1) * self.weight_gradients
+        self.adam_v = self.ADAM_BETA_2 * self.adam_v + (1 - self.ADAM_BETA_2) * self.weight_gradients ** 2
+
+        m_corr = self.adam_m / (1 - np.power(self.ADAM_BETA_1, self.adam_iterations_count)) + (
+            1 - self.ADAM_BETA_1
+        ) * self.weight_gradients / (1 - np.power(self.ADAM_BETA_1, self.adam_iterations_count))
+        v_corr = self.adam_v / (1 - np.power(self.ADAM_BETA_2, self.adam_iterations_count))
+
+        self.weights -= self.learning_rate * m_corr / (np.sqrt(v_corr) + self.ADAM_EPSILON)
 
     @property
     def batch_size(self):
@@ -51,10 +66,6 @@ class SynapseCluster:
     @property
     def learning_rate(self):
         return self.__brain.learning_rate
-
-    @property
-    def momentum(self):
-        return self.__brain.momentum
 
     @property
     def regularization_factor(self):
