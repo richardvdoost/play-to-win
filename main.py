@@ -11,41 +11,40 @@ from plotter import Plotter
 np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 
 # Hyper parameters
-UPDATE_EVERY = 200
+UPDATE_EVERY = 500
 
-DISCOUNT_FACTOR = 0.9
-REWARD_FACTOR = 2
-TRAIN_ITERATIONS = 1
+DISCOUNT_FACTOR = 0.8
+REWARD_FACTOR = 4
 EXPERIENCE_BATCH_SIZE = 256
-EXPERIENCE_BUFFER_SIZE = 8 * EXPERIENCE_BATCH_SIZE
+BATCH_ITERATIONS = 4
+EXPERIENCE_BUFFER_SIZE = 8192 * 2
 
-LEARNING_RATE = 0.2
-MOMENTUM = 0.9
-REGULARIZATION = 0.05
+LEARNING_RATE = 0.001
+REGULARIZATION = 0.9
 
 BRAIN_TOPOLOGY = (
     (18, None),
-    (128, Softplus),
+    (192, Softplus),
     (9, Sigmoid),
 )
 
-try:
-    player_brain = pickle.load(open("brain/saved/winning-from-more-robust.pickle", "rb",))
-    pre_trained_brain = pickle.load(open("brain/saved/player_brain-beating-ttt-more-robust.pickle", "rb"))
-    opponent = RandomPlayer()
-    # opponent = PolicyGradientPlayer(pre_trained_brain)
-    # opponent.is_learning = False
-    # print("Training against a pre-trained player")
-except Exception:
-    print("Training against a random player")
-    player_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, momentum=MOMENTUM, regularization=REGULARIZATION)
-    opponent = RandomPlayer()
+# try:
+#     player_brain = pickle.load(open("brain/saved/winning-from-more-robust.pickle", "rb",))
+#     pre_trained_brain = pickle.load(open("brain/saved/player_brain-beating-ttt-more-robust.pickle", "rb"))
+#     opponent = RandomPlayer()
+#     # opponent = PolicyGradientPlayer(pre_trained_brain)
+#     # opponent.is_learning = False
+#     # print("Training against a pre-trained player")
+# except Exception:
+print("Training against a random player")
+player_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, regularization=REGULARIZATION)
+opponent = RandomPlayer()
 
 policy_player = PolicyGradientPlayer(
     player_brain,
     discount_factor=DISCOUNT_FACTOR,
     reward_factor=REWARD_FACTOR,
-    train_iterations=TRAIN_ITERATIONS,
+    batch_iterations=BATCH_ITERATIONS,
     experience_batch_size=EXPERIENCE_BATCH_SIZE,
     experience_buffer_size=EXPERIENCE_BUFFER_SIZE,
 )
@@ -162,11 +161,10 @@ while running:
             settings_str = (
                 f"-discount_fac={DISCOUNT_FACTOR}"
                 f"-reward_factor={REWARD_FACTOR}"
-                f"-train_iterations={TRAIN_ITERATIONS}"
+                f"-batch_iterations={BATCH_ITERATIONS}"
                 f"-experience_batch_size={EXPERIENCE_BATCH_SIZE}"
                 f"-experience_buffer_size={EXPERIENCE_BUFFER_SIZE}"
                 f"-learning_rate={LEARNING_RATE}"
-                f"-momentum={MOMENTUM}"
                 f"-regularization={REGULARIZATION}"
             )
             for hidden_layer in BRAIN_TOPOLOGY[1:-1]:
@@ -182,3 +180,12 @@ while running:
         running = False
 
 plotter.save_image(f"plots/performance-plot.png")
+
+negative_experiences = [experience for experience in policy_player.experiences if experience["value"] < 0]
+for experience in negative_experiences[-20:]:
+    # for experience in policy_player.experiences[-20:]:
+    print(f"allowed actions:      {experience['allowed_actions']}")
+    print(f"action probabilities: {experience['action_probabilities']}")
+    print(f"value: {experience['value']:6.3f}            {experience['choice'] * '      '}<{experience['choice']}>")
+    print(f"new target:           {experience['target']}")
+    print()

@@ -19,7 +19,9 @@ class Plotter:
 
     def __init__(self, title, data, line_width=1.5):
         plt.ion()  # Enable interactive mode
-        self.figure = plt.figure()
+
+        # Perfect window size for Retina Macbook: 2880x1536 (1440x768)
+        self.figure = plt.figure(figsize=(15, 8), dpi=96)
         self.figure.patch.set_facecolor(self.colors["fig"])
         self.figure.suptitle(title, color=self.colors["text_dark"])
 
@@ -89,6 +91,4 @@ class Plotter:
 
     def save_image(self, file_name):
         plt.ioff()
-        self.figure.set_figwidth(15)
-        self.figure.set_figheight(10)
         plt.savefig(file_name, facecolor=self.figure.get_facecolor(), edgecolor="none")

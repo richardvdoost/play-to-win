@@ -15,7 +15,7 @@ class Brain:
     represented by a NumPy matrix.
     """
 
-    def __init__(self, topology, learning_rate=0.5, momentum=None, regularization=None):
+    def __init__(self, topology, learning_rate=0.1, regularization=None):
         """
         Args:
             topology ((int, TransferFunction | None), ...): Describes each layer of the network with a lenght for the
@@ -46,7 +46,6 @@ class Brain:
                 self.__non_bias_weights_count += len(surrounding_neuron_layers[0]) * len(surrounding_neuron_layers[1])
 
         self.learning_rate = learning_rate
-        self.momentum = momentum
         self.__regularization = regularization
         self.__regularization_factor = regularization
         self.__batch_size = 1
@@ -57,7 +56,7 @@ class Brain:
         self.forward_prop()
         return self.output
 
-    def train(self, training_samples, iteration_count):
+    def train(self, training_samples, iteration_count=1):
         """
         Train the network on some training samples for a number of iterations
         
@@ -66,27 +65,17 @@ class Brain:
             iteration_count (int): Numer of iterations to run on the training data
         """
 
-        # print(f"\n\n== Training batch of {len(training_samples)} training samples in {iteration_count} iterations ==\n")
-
         self.convert_training_samples(training_samples)
 
-        # Start the training iterations
-        for _i in range(iteration_count):
+        for _ in range(iteration_count):
             self.forward_prop()
             self.back_prop()
-
-            # Print the progress (cost) 20 times during the training
-            # if i % max(1, iteration_count // 20) == 0:
-            #     cost = self.cost()
-            # print("cost:", round(cost, 3))
-
             self.optimize_weights()
 
-        # print(f"\nTarget:\n{self.target}")
-        # print(f"\nOutput:\n{self.output}")
-
     def convert_training_samples(self, training_samples):
-        """ Convert training data to NumPy matrices and initialize the input (X) and target (Y) of the network """
+        """
+        Convert training data to NumPy matrices and initialize the input (X) and target (Y) of the network
+        """
 
         assert len(training_samples[0]["input"]) == len(self.input_layer)
         assert len(training_samples[0]["target"]) == len(self.output_layer)
