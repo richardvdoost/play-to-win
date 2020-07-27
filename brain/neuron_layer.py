@@ -63,6 +63,10 @@ class NeuronLayer:
     def neurons_right(self):
         return self.synapses_right.neurons_right if self.synapses_right is not None else None
 
+    @property
+    def activation_type(self):
+        return self.__activation_function.__name__
+
     @logit.setter
     def logit(self, logit):
         assert logit.shape[1] == self.__length

@@ -1,4 +1,5 @@
 import numpy as np
+
 from .neuron_layer import NeuronLayer
 from .synapse_cluster import SynapseCluster
 
@@ -108,7 +109,15 @@ class Brain:
 
     @property
     def cost(self):
-        cost_matrix = -1 * self.target * np.ma.log(self.output) - (1 - self.target) * np.ma.log(1 - self.output)
+        print("Output layer activation type:", self.output_layer.activation_type)
+
+        if self.output_layer.activation_type == "Sigmoid":
+            cost_matrix = -1 * self.target * np.ma.log(self.output) - (1 - self.target) * np.ma.log(1 - self.output)
+        elif self.output_layer.activation_type == "Softmax":
+            cost_matrix = -1 * self.target * np.ma.log(self.output)
+        else:
+            raise Exception(f"Wrong output layer activation type: {self.output_layer.activation_type}")
+
         cost = np.sum(cost_matrix) / self.batch_size
 
         if self.regularization_factor is not None:

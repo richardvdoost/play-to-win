@@ -1,19 +1,19 @@
 from brain import Brain
-from brain.activation_functions import Identity, ReLU, Sigmoid, Softplus
+from brain.activation_functions import Identity, ReLU, Sigmoid, Softmax, Softplus
 
 test_samples = (
-    {"input": (0, 0), "target": (0,)},
-    {"input": (1, 0), "target": (1,)},
-    {"input": (0, 1), "target": (1,)},
-    {"input": (1, 1), "target": (0,)},
+    {"input": (0, 0), "target": (0, 0, 1)},
+    {"input": (1, 0), "target": (1, 0, 0)},
+    {"input": (0, 1), "target": (1, 0, 0)},
+    {"input": (1, 1), "target": (0, 1, 0)},
 )
 
 
-def test_brain_weight_gradients_sigmoid():
+def test_brain_weight_gradients_softmax():
     brain_topology = (
         (2, None),
         (3, Sigmoid),
-        (1, Sigmoid),
+        (3, Softmax),
     )
 
     # Make sure the difference between analytical and numerical calculation is less than 0.01%
@@ -26,7 +26,7 @@ def test_brain_weight_gradients_relu_sigmoid():
     brain_topology = (
         (2, None),
         (3, ReLU),
-        (1, Sigmoid),
+        (3, Sigmoid),
     )
 
     # Make sure the difference between analytical and numerical calculation is less than 0.01%
@@ -35,11 +35,11 @@ def test_brain_weight_gradients_relu_sigmoid():
     assert max(diff_percentages) < 0.01
 
 
-def test_brain_weight_gradients_softplus_sigmoid():
+def test_brain_weight_gradients_softplus_softmax():
     brain_topology = (
         (2, None),
         (3, Softplus),
-        (1, Sigmoid),
+        (3, Softmax),
     )
 
     # Make sure the difference between analytical and numerical calculation is less than 0.01%
@@ -52,7 +52,7 @@ def test_brain_weight_gradients_identity_sigmoid():
     brain_topology = (
         (2, None),
         (3, Identity),
-        (1, Sigmoid),
+        (3, Sigmoid),
     )
 
     # Make sure the difference between analytical and numerical calculation is less than 0.01%
@@ -68,7 +68,7 @@ def test_brain_weight_gradients_deep_mix():
         (4, Sigmoid),
         (3, ReLU),
         (4, Softplus),
-        (1, Sigmoid),
+        (3, Softmax),
     )
 
     # Make sure the difference between analytical and numerical calculation is less than 0.01%
@@ -84,7 +84,7 @@ def test_brain_weight_gradients_regularization():
         (4, Sigmoid),
         (3, ReLU),
         (4, Softplus),
-        (1, Sigmoid),
+        (3, Softmax),
     )
 
     # Make sure the difference between analytical and numerical calculation is less than 0.01%

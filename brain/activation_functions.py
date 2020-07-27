@@ -1,7 +1,8 @@
 # Bunch of different activation functions with gradients that evaluate element-wise on numpy arrays
 
-import numpy as np
 from abc import ABC, abstractmethod
+
+import numpy as np
 
 
 class ActivationFunction(ABC):
@@ -57,6 +58,19 @@ class Softplus(ActivationFunction):
         return 1 / (1 + np.exp(-1 * x))
 
 
+class Softmax(ActivationFunction):
+    @staticmethod
+    def activate(x):
+        t = np.exp(x)
+        m = x.shape[0]
+        return t / t.sum(1).reshape((m, 1))
+
+    @staticmethod
+    def gradient(x):
+        # Only use softmax as output layer, then we don't need this
+        pass
+
+
 # Testing
 if __name__ == "__main__":
 
@@ -69,3 +83,5 @@ if __name__ == "__main__":
         print("    ", f.__name__, "\b(", x, ") =", f.activate(x))
         print("d/dx", f.__name__, "\b(", x, ") =", f.gradient(x))
         print()
+
+    print(f"    Softmax:\n{Softmax.activate(np.array([[1,2,3,4],[2,3,4,5]]))}")
