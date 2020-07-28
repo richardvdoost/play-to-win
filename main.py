@@ -1,31 +1,32 @@
-import numpy as np
 import pickle
 
+import numpy as np
+
 from brain import Brain
-from brain.activation_functions import Identity, ReLU, Sigmoid, Softplus
+from brain.activation_functions import Identity, ReLU, Sigmoid, Softmax, Softplus
 from games import TicTacToe
-from players import RandomPlayer, PolicyGradientPlayer
+from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
 # Set some NumPy print options
 np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 
 # Hyper parameters
-UPDATE_EVERY = 500
+PLAY_COUNT = 100
 
 DISCOUNT_FACTOR = 0.8
 REWARD_FACTOR = 4
-EXPERIENCE_BATCH_SIZE = 256
-BATCH_ITERATIONS = 4
-EXPERIENCE_BUFFER_SIZE = 8192 * 2
+EXPERIENCE_BATCH_SIZE = 128
+BATCH_ITERATIONS = 1
+EXPERIENCE_BUFFER_SIZE = 8192 * 8
 
 LEARNING_RATE = 0.001
-REGULARIZATION = 0.9
+REGULARIZATION = 4
 
 BRAIN_TOPOLOGY = (
     (18, None),
-    (192, Softplus),
-    (9, Sigmoid),
+    (1024, ReLU),
+    (9, Softmax),
 )
 
 # try:
@@ -70,7 +71,7 @@ plot_data = {
             {"label": "% Losses", "color": "red"},
             {"label": "% Wins", "color": "green"},
         ],
-        "ylabel": f"Average of {UPDATE_EVERY} Games",
+        "ylabel": f"Average of {PLAY_COUNT} Games",
         "legend": True,
     },
     "value": {"placement": 222, "graphs": [{"color": "blue"}], "ylabel": f"Mean Experience Value"},
@@ -92,19 +93,37 @@ plotter = Plotter("Policy Network Performance", plot_data)
 game_count = 0
 prev_score = None
 prev_mean_experience_value = None
+brain_cost = 0
 brain_cost_ema = None
 perfect_score_count = 0
 running = True
 while running:
     try:
-        tictactoe_game.play(UPDATE_EVERY)
-        game_count += UPDATE_EVERY
+
+        # Compete / play (always take the highest valued allowed action)
+        policy_player.is_learning = not game_count % (10 * PLAY_COUNT)
+
+        tictactoe_game.play(PLAY_COUNT)
+
+        game_count += PLAY_COUNT
 
         score_tuple = tictactoe_game.score
-        score_tuple_rel = score_tuple[0] / UPDATE_EVERY * 100, score_tuple[1] / UPDATE_EVERY * 100
+        score_tuple_rel = score_tuple[0] / PLAY_COUNT * 100, score_tuple[1] / PLAY_COUNT * 100
         score = score_tuple_rel[0] - score_tuple_rel[1]
         score_diff = (score - prev_score) / abs(prev_score) * 100 if prev_score else 0
         prev_score = score
+
+        # # Train (sample based on action probabilities)
+        # policy_player.is_learning = game_count > PLAY_BEFORE_TRAINING
+        # tictactoe_game.play(TRAIN_COUNT)
+
+        if policy_player.is_learning:
+            brain_cost = player_brain.cost
+            brain_cost_ema = (
+                0.9 * brain_cost_ema + 0.1 * brain_cost
+                if brain_cost_ema and not np.isnan(brain_cost_ema)
+                else brain_cost
+            )
 
         mean_experience_value = policy_player.mean_experience_value
         mean_experience_value_diff = (
@@ -113,11 +132,6 @@ while running:
             else 0.0
         )
         prev_mean_experience_value = mean_experience_value
-
-        brain_cost = player_brain.cost
-        brain_cost_ema = (
-            0.9 * brain_cost_ema + 0.1 * brain_cost if brain_cost_ema and not np.isnan(brain_cost_ema) else brain_cost
-        )
 
         weight_range = player_brain.weight_range
 
@@ -129,7 +143,7 @@ while running:
             f"Mean Experience Value: {mean_experience_value:6.3f} {mean_experience_value_diff:+4.1f}%\n"
             f"Experience Buffer Usage: {policy_player.experience_buffer_usage * 100:5.1f}%\n"
             f"Brain Cost: {brain_cost:4.3f}\n"
-            f"Brain Cost EMA: {brain_cost_ema:4.3f}\n"
+            f"Brain Cost EMA: {(0 if brain_cost_ema is None else brain_cost_ema):4.3f}\n"
             f"Weight Range: [{weight_range[0]:6.3f}, {weight_range[1]:6.3f}]\n"
             f"Output: {player_brain.output[0,:]}\n"
             f"Target: {player_brain.target[0,:]}\n"
@@ -155,7 +169,7 @@ while running:
 
         # Stop when we have a perfect score (0 losses)
         if score_tuple[1] == 0:
-            print(f"Played perfectly for {UPDATE_EVERY} games in a row 😬 Stopping")
+            print(f"Played perfectly for {PLAY_COUNT} games in a row 😬 Stopping")
 
             # Save the trained brain, and the plots
             settings_str = (
@@ -181,11 +195,15 @@ while running:
 
 plotter.save_image(f"plots/performance-plot.png")
 
-negative_experiences = [experience for experience in policy_player.experiences if experience["value"] < 0]
-for experience in negative_experiences[-20:]:
-    # for experience in policy_player.experiences[-20:]:
-    print(f"allowed actions:      {experience['allowed_actions']}")
-    print(f"action probabilities: {experience['action_probabilities']}")
-    print(f"value: {experience['value']:6.3f}            {experience['choice'] * '      '}<{experience['choice']}>")
-    print(f"new target:           {experience['target']}")
-    print()
+experiences_set = (
+    [experience for experience in policy_player.experiences if experience["value"] < 0],
+    [experience for experience in policy_player.experiences if experience["value"] > 0],
+)
+for experiences in experiences_set:
+    for experience in experiences[-10:]:
+        # for experience in policy_player.experiences[-20:]:
+        print(f"allowed actions:      {experience['allowed_actions']}")
+        print(f"action probabilities: {experience['action_probabilities']}")
+        print(f"value: {experience['value']:6.3f}            {experience['choice'] * '      '}<{experience['choice']}>")
+        print(f"nudge:                {experience['nudge']}")
+        print()

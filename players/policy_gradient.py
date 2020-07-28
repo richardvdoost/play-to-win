@@ -1,5 +1,7 @@
 import numpy as np
+
 from brain import Brain
+
 from .player import Player
 
 
@@ -40,12 +42,20 @@ class PolicyGradientPlayer(Player):
 
         # Feed the state into the brain to get the probablity distribution of actions
         action_probabilities = self.brain.think(state_reshaped).copy()
-        action_probabilities += 1e-8  # Prevent division by 0
-        action_probabilities[allowed_actions_reshaped == False] = 0
-        action_probabilities /= np.sum(action_probabilities)  # Normalize
-        choice = np.random.choice(action_probabilities.size, p=action_probabilities.flatten())
 
-        action = self.create_action_matrix(action_count, choice)
+        if self.is_learning:
+
+            # Sample an action over the softmax probabilities
+            for _ in range(16):
+                choice = np.random.choice(action_probabilities.size, p=action_probabilities.flatten())
+                if allowed_actions_reshaped[0, choice]:
+                    break
+
+            if not allowed_actions_reshaped[0, choice]:
+                choice = (action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped).argmax()
+
+        else:
+            choice = (action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped).argmax()
 
         self.episode.append(
             {
@@ -56,34 +66,32 @@ class PolicyGradientPlayer(Player):
                 "value": 0,
             }
         )
+
+        action = self.create_action_matrix(action_count, choice)
+
         return action.reshape(allowed_actions.shape)
 
     def reward(self, reward):
+        # if self.is_learning:
         self.episode[-1]["value"] += reward
 
     def game_over(self):
 
+        self.process_last_experiences()
+
         if not self.is_learning:
             return
-
-        self.process_last_experiences()
 
         if len(self.experiences) < self.experience_batch_size:
             return
 
-        batch_data = []
         for batch in self.get_experience_batches():
 
-            training_data = []
+            samples = []
             for experience in batch:
-                training_data.append({"input": experience["state"].flatten(), "target": experience["target"].flatten()})
+                samples.append({"input": experience["state"].flatten(), "nudge": experience["nudge"].flatten()})
 
-            batch_data.append(training_data)
-
-        # Cycle through the mini batches and train the brain on them (multiple cycles for more experience efficiency)
-        for _ in range(self.batch_iterations):
-            for training_data in batch_data:
-                self.brain.train(training_data, 1)
+            self.brain.nudge(samples)
 
     def process_last_experiences(self):
         """
@@ -106,83 +114,28 @@ class PolicyGradientPlayer(Player):
             if -1e-4 < experience["value"] < 1e-4:
                 continue
 
-            # Try to figure out what to do when we have a similar experience next time
+            # # Hand tuned way to recreate target
+            # target = np.log(0.001 + experience["action_probabilities"] * 0.998)
+            # target[0, experience["choice"]] += (
+            #     experience["value"] * 1.2 / (1.2 - target[0, experience["choice"]]) * self.reward_factor
+            # )
+            # target[experience["allowed_actions"] == False] -= 1e4
+            # t = np.exp(target)
+            # target = t / np.sum(t)
 
-            # Convert action probabilities to expected value (inverse softmax = ln(x) + c)
-            # Now, add the value of the experience to the expected value of the chosen action
-            # Convert back to probability distribution with softmax
-            # print(f"action probabilities:     {experience['action_probabilities']}")
-            # print(f"choice: {experience['choice']} - value: {experience['value']}")
+            # # Use the alpha-toe method but indirectly by creating a target rather than using the gradient
+            # choice = experience["choice"]
+            # target = experience["action_probabilities"] * experience["allowed_actions"]
+            # target[0, choice] += max(1e-2, target[0, choice]) * experience["value"]
 
-            # Attempt 3:
-            # Nudge the probability of the chosen action in the experience
-            #  - Use the inverse sigmoid to compute the current "z" value of the action probability
-            #  - Compute the new "z" value simply by adding the value of the experience to it
-            #  - Compute the new probability with sigmoid(z)
-            #  - Scale the other probabilities so that the total sum of probabilities is 1
-
-            # If there's only one allowed action, don't bother updating probabilities
-            target = experience["action_probabilities"].copy()
-            if allowed_actions_count > 1:
-
-                # print(f"Value: {experience['value']}")
-                # print(f"Old action probabilities: {target}")
-                # p = target[0, experience["choice"]]
-                # print(f"Chosen action {experience['choice']} probabilty before: {p}")
-                # z = np.log(p / (1 - p))
-                # print(f"Z Value: {z}")
-                # z += self.reward_factor * experience["value"]
-                # print(f"New Z Value: {z}")
-                # p = 1 / (1 + np.exp(-z))
-                # print(f"Chosen action probabilty after:  {p}")
-                # target[0, experience["choice"]] = p
-
-                # other_actions_mask = experience["allowed_actions"].copy()
-                # other_actions_mask[0, experience["choice"]] = False
-                # target[other_actions_mask] *= (1 - p) / np.sum(target[other_actions_mask])
-
-                other_actions_mask = experience["allowed_actions"].copy()
-                other_actions_mask[0, experience["choice"]] = False
-                other_actions_sum = np.sum(target[other_actions_mask])
-
-                # Attempt 4:
-                # print(f"Old action probabilities: {target}")
-                # print(f"Value: {experience['value']}")
-                p = target[0, experience["choice"]]
-                # print(f"Chosen action {experience['choice']} probabilty before: {p}")
-                if experience["value"] > 0:
-                    p = 1 - (1 - p) * np.exp(-experience["value"] * self.reward_factor)
-
-                    # Decrease other probabilities
-                    target[other_actions_mask] *= (1 - p) / other_actions_sum
-                else:
-                    p = p * np.exp(experience["value"] * self.reward_factor)
-
-                    # Increase other probabilities
-                    target[other_actions_mask] += (1 - p - other_actions_sum) / np.count_nonzero(other_actions_mask)
-
-                # print(f"Chosen action probabilty after:  {p}")
-
-                target[0, experience["choice"]] = p
-
-                # print(f"New action probabilities: {target}")
-                # print()
-
-                # if len(self.experiences) > 5:
-                #     exit()
-
-            experience["target"] = target
-
-            # target = np.ma.log(experience["action_probabilities"])
-            # target = experience["action_probabilities"]
-            # target[experience["allowed_actions"] == False] = 0
-            # print(f"target before:            {target}")
-            # target[0, experience["choice"]] += self.reward_factor * experience["value"]
-            # print(f"target after:             {target}")
-            # target[experience["allowed_actions"]] = self.softmax(target[experience["allowed_actions"]])
             # experience["target"] = target
-            # print(f"new action probabilities: {target}")
-            # print(f"allowed actions:          {experience['allowed_actions']}")
+
+            # NEW WAY: Don't use a 'target' but use a 'nudge' to nudge the brain into a certain direction regardless of
+            # the current output the brain gave at the time
+
+            experience["nudge"] = np.zeros(experience["allowed_actions"].shape)
+            experience["nudge"][experience["allowed_actions"] == False] -= 1e4
+            experience["nudge"][0, experience["choice"]] = experience["value"] * self.reward_factor
 
             # If we can add another experience do so, otherwise, replace a random experience
             if len(self.experiences) < self.experience_buffer_size:

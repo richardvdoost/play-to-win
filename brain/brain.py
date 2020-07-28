@@ -1,5 +1,6 @@
 import numpy as np
 
+from .activation_functions import Softmax
 from .neuron_layer import NeuronLayer
 from .synapse_cluster import SynapseCluster
 
@@ -73,6 +74,29 @@ class Brain:
             self.back_prop()
             self.optimize_weights()
 
+    def nudge(self, samples):
+        """
+        Be able to just nudge the brain into a better direction
+        Nudge values can be positive or negative.
+        Current brain output will be converted from probability distribution to "scores"
+        Scores will be nudged, and then converted back into a new probability distribution
+        """
+
+        assert len(samples[0]["input"]) == len(self.input_layer)
+        assert len(samples[0]["nudge"]) == len(self.output_layer)
+
+        self.batch_size = len(samples)
+        self.set_input(np.array([sample["input"] for sample in samples]))
+        self.forward_prop()
+
+        # Convert output into scores (squeeze values towards 0.5 for more stability)
+        scores = np.log(0.001 + self.output * 0.998)
+        scores += np.array([sample["nudge"] for sample in samples])
+
+        self.target = Softmax.activate(scores)
+        self.back_prop()
+        self.optimize_weights()
+
     def convert_training_samples(self, training_samples):
         """
         Convert training data to NumPy matrices and initialize the input (X) and target (Y) of the network
@@ -94,6 +118,7 @@ class Brain:
 
     def back_prop(self):
         self.output_layer.delta = self.output - self.target  # Only works for sigmoid layers
+
         for layer in reversed(self.neuron_layers[:-1]):
             layer.back_prop()
 
@@ -109,8 +134,6 @@ class Brain:
 
     @property
     def cost(self):
-        print("Output layer activation type:", self.output_layer.activation_type)
-
         if self.output_layer.activation_type == "Sigmoid":
             cost_matrix = -1 * self.target * np.ma.log(self.output) - (1 - self.target) * np.ma.log(1 - self.output)
         elif self.output_layer.activation_type == "Softmax":

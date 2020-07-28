@@ -61,8 +61,9 @@ class Softplus(ActivationFunction):
 class Softmax(ActivationFunction):
     @staticmethod
     def activate(x):
-        t = np.exp(x)
         m = x.shape[0]
+        x_rel = x - x.max(1).reshape((m, 1))
+        t = np.exp(x_rel)
         return t / t.sum(1).reshape((m, 1))
 
     @staticmethod
