@@ -25,11 +25,11 @@ generation = [
     {
         "discount_factor": 0.5,
         "reward_factor": 1,
-        "experience_batch_size": 8,
-        "experience_buffer_size": 128,
+        "experience_batch_size": 64,
+        "experience_buffer_size": 1024,
         "batch_iterations": 1,
         "learning_rate": 0.001,
-        "regularization": 1,
+        "regularization": 0.1,
         "brain": [],
         "fitness": 0,
     },
@@ -47,7 +47,7 @@ plot_data = {
     "brain_size": {
         "placement": 122,
         "graphs": [{"color": "blue"}, {"color": "blue"}, {"color": "blue"}],
-        "ylabel": f"Brain Size (# of parameters)",
+        "ylabel": f"Brain Size (# of synapses)",
         "xlabel": f"Generation",
     },
 }
@@ -63,8 +63,7 @@ def train(game):
         game.play(games_per_step)
         games_played += games_per_step
 
-    print(f" - played {games_played} games in {TRAIN_TIME} seconds")
-    return game
+    print(f" - Trained on {games_played} games")
 
 
 def play(game):
@@ -178,7 +177,6 @@ if __name__ == "__main__":
             generation = new_generation
             print()
 
-            players = []
             play_scores = []
             games = []
             for i, candidate in enumerate(generation):
@@ -198,7 +196,6 @@ if __name__ == "__main__":
                     experience_batch_size=candidate["experience_batch_size"],
                     experience_buffer_size=candidate["experience_buffer_size"],
                 )
-                players.append(policy_player)
 
                 # Create the game
                 random_game = TicTacToe((policy_player, random_player))
@@ -228,6 +225,9 @@ if __name__ == "__main__":
 
             # wait(play_processes)
             print("  Done\n")
+
+            for game in games:
+                print(f" - Game score: {game.score}")
 
             for i, (game, genome) in enumerate(zip(games, generation)):
                 score = game.score
