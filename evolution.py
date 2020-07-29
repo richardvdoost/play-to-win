@@ -90,7 +90,11 @@ while running:
 
         # Take the generation fitness and create a softmax distribution to sample over
         generation_fitness = np.array([candidate["fitness"] for candidate in generation])
+<<<<<<< HEAD
         t = np.exp(generation_fitness)
+=======
+        t = np.exp(generation_fitness * 0.5)
+>>>>>>> dc028da552ad9d83586b62687996dd0e05a22160
         fitness_softmax = t / np.sum(t)
         print(f"Fitness softmax: {fitness_softmax}")
 
@@ -205,8 +209,13 @@ while running:
             score = (
                 random_game.score
             )  # random_game.score[0] + trained_game.score[0], random_game.score[1] + trained_game.score[1]
+<<<<<<< HEAD
             fitness = -score[1] / PLAY_COUNT * 100
             print(f" - Fitness: {fitness:.1f}% (wins: {score[0]}, losses: {score[1]})")
+=======
+            fitness = -score[1]
+            print(f" - Fitness: {fitness} (wins: {score[0]}, losses: {score[1]})")
+>>>>>>> dc028da552ad9d83586b62687996dd0e05a22160
             candidate["fitness"] = fitness
             play_scores.append(score)
 
