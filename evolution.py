@@ -12,7 +12,7 @@ from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
 GENERATION_SIZE = 8
-TRAIN_TIME = 30
+TRAIN_TIME = 5
 PLAY_COUNT = 1000
 
 activation_functions = (ReLU, Sigmoid, Softplus)
@@ -25,11 +25,11 @@ generation = [
     {
         "discount_factor": 0.5,
         "reward_factor": 1,
-        "experience_batch_size": 8,
-        "experience_buffer_size": 128,
+        "experience_batch_size": 64,
+        "experience_buffer_size": 1024,
         "batch_iterations": 1,
         "learning_rate": 0.001,
-        "regularization": 1,
+        "regularization": 0.1,
         "brain": [],
         "fitness": 0,
     },
@@ -47,7 +47,7 @@ plot_data = {
     "brain_size": {
         "placement": 122,
         "graphs": [{"color": "blue"}, {"color": "blue"}, {"color": "blue"}],
-        "ylabel": f"Brain Size (# of parameters)",
+        "ylabel": f"Brain Size (# of synapses)",
         "xlabel": f"Generation",
     },
 }
@@ -62,7 +62,7 @@ def train(game, train_time):
         game.play(games_per_step)
         games_played += games_per_step
 
-    print(f" - played {games_played} games in {train_time} seconds")
+    print(f" - Trained on {games_played} games")
 
 
 def play(game, play_count):
@@ -70,6 +70,7 @@ def play(game, play_count):
     game.players[0].is_learning = False
     game.players[0].act_greedy = True
     game.play(play_count)
+    print(f" - Game score: {game.score}")
 
 
 def brain_size(hidden_layers):
@@ -174,7 +175,6 @@ if __name__ == "__main__":
             generation = new_generation
             print()
 
-            players = []
             play_scores = []
             games = []
             for i, candidate in enumerate(generation):
@@ -194,7 +194,6 @@ if __name__ == "__main__":
                     experience_batch_size=candidate["experience_batch_size"],
                     experience_buffer_size=candidate["experience_buffer_size"],
                 )
-                players.append(policy_player)
 
                 # Create the game
                 random_game = TicTacToe((policy_player, random_player))
@@ -208,18 +207,20 @@ if __name__ == "__main__":
                 training_process.start()
 
             wait(training_processes)
-            print("  Done\n")
+            print("  Done training\n")
 
             print(f"Let all players play {PLAY_COUNT} games each")
             play_processes = []
             for game in games:
-                play(game, PLAY_COUNT)
                 play_process = Process(target=play, args=(game, PLAY_COUNT))
                 play_processes.append(play_process)
                 play_process.start()
 
             wait(play_processes)
             print("  Done\n")
+
+            for game in games:
+                print(f" - Game score: {game.score}")
 
             for i, (game, genome) in enumerate(zip(games, generation)):
                 score = game.score
