@@ -11,8 +11,8 @@ from games import TicTacToe
 from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
-GENERATION_SIZE = 4
-TRAIN_TIME = 5
+GENERATION_SIZE = 8
+TRAIN_TIME = 100
 PLAY_COUNT = 1000
 
 activation_functions = (ReLU, Sigmoid, Softplus)
@@ -64,6 +64,7 @@ def train(game):
         games_played += games_per_step
 
     print(f" - Trained on {games_played} games")
+    return game
 
 
 def play(game):
@@ -199,43 +200,26 @@ if __name__ == "__main__":
 
                 # Create the game
                 random_game = TicTacToe((policy_player, random_player))
+                random_game.id = i
                 games.append(random_game)
 
             print(f"Training all players for {TRAIN_TIME} seconds")
             with Pool(GENERATION_SIZE) as pool:
                 games = pool.map(train, games)
-            # training_processes = []
-            # for game in games:
-            #     training_process = Process(target=train, args=(game, TRAIN_TIME))
-            #     training_processes.append(training_process)
-            #     training_process.start()
-
-            # wait(training_processes)
-            print("  Done\n")
+            print("Done training\n")
 
             print(f"Let all players play {PLAY_COUNT} games each")
             with Pool(GENERATION_SIZE) as pool:
                 games = pool.map(play, games)
-            # play_processes = []
-            # for game in games:
-            #     play(game, PLAY_COUNT)
-            #     play_process = Process(target=play, args=(game, PLAY_COUNT))
-            #     play_processes.append(play_process)
-            #     play_process.start()
+            print("Done playing\n")
 
-            # wait(play_processes)
-            print("  Done\n")
-
-            for game in games:
-                print(f" - Game score: {game.score}")
-
-            for i, (game, genome) in enumerate(zip(games, generation)):
+            for game, genome in zip(games, generation):
                 score = game.score
                 fitness = -score[1] / PLAY_COUNT * 100
                 genome["fitness"] = fitness
                 play_scores.append(score)
 
-                print(f"Player {i} {[layer[0] for layer in genome['brain']]}")
+                print(f"Player {game.id} {[layer[0] for layer in genome['brain']]}")
                 print(f" - Fitness: {fitness:.1f}% (wins: {score[0]}, losses: {score[1]})")
 
             print(f"\nGeneration {generation_index:04d} Genomes:")
