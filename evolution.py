@@ -1,6 +1,6 @@
 import pickle
 import pprint
-import threading
+from multiprocessing import Process
 import time
 
 import numpy as np
@@ -11,7 +11,7 @@ from games import TicTacToe
 from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
-GENERATION_SIZE = 16
+GENERATION_SIZE = 8
 TRAIN_TIME = 30
 PLAY_COUNT = 1000
 
@@ -25,10 +25,10 @@ generation = [
     {
         "discount_factor": 0.5,
         "reward_factor": 1,
-        "experience_batch_size": 16,
+        "experience_batch_size": 8,
         "experience_buffer_size": 128,
         "batch_iterations": 1,
-        "learning_rate": 0.01,
+        "learning_rate": 0.001,
         "regularization": 1,
         "brain": [],
         "fitness": 0,
@@ -55,9 +55,20 @@ plotter = Plotter("Generation Performance", plot_data)
 
 
 def train(game, train_time):
+    games_per_step = 50
+    games_played = 0
     start_time = time.time()
     while time.time() < start_time + train_time:
-        game.play(100)
+        game.play(games_per_step)
+        games_played += games_per_step
+    
+    print(f" - played {games_played} games in {train_time} seconds")
+
+def play(game, play_count):
+    game.reset_score()
+    game.players[0].is_learning = False
+    game.players[0].act_greedy = True
+    game.play(play_count)
 
 
 def brain_size(hidden_layers):
@@ -69,9 +80,9 @@ def brain_size(hidden_layers):
     return parameter_count
 
 
-def wait(threads):
-    for thread in threads:
-        thread.join()
+def wait(processes):
+    for process in processes:
+        process.join()
 
 
 np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
@@ -129,8 +140,8 @@ while running:
 
                 if len(parent["brain"]) == 0:
                     print("   Growing a brain!")
-                    # Spawn a new brian layer out of nothing, use the base layer
-                    brain = [[14, activation_function]]  # Hardcoded 9 because tictactoe
+                    # Spawn a brain layer out of nothing, use the base layer
+                    brain = [[14, activation_function]]  # Hardcoded 14 because tictactoe average of input neurons and output neurons
 
                 else:
                     # Pick a random brain layer and double it, but choose a random activation function
@@ -184,42 +195,39 @@ while running:
             games.append(random_game)
 
         print(f"Training all players for {TRAIN_TIME} seconds")
-        training_threads = []
+        training_processes = []
         for game in games:
-            training_thread = threading.Thread(target=train, args=(game, TRAIN_TIME))
-            training_threads.append(training_thread)
-            training_thread.start()
+            training_process = Process(target=train, args=(game, TRAIN_TIME))
+            training_processes.append(training_process)
+            training_process.start()
 
-        wait(training_threads)
+        wait(training_processes)
         print("  Done\n")
 
         print(f"Let all players play {PLAY_COUNT} games each")
-        play_threads = []
-        for player, game in zip(players, games):
-            player.is_learning = False
-            player.act_greedy = True
+        play_processes = []
+        for game in games:
+            play(game, PLAY_COUNT)
+            play_process = Process(target=play, args=(game, PLAY_COUNT))
+            play_processes.append(play_process)
+            play_process.start()
 
-            game.reset_score()
-            play_thread = threading.Thread(target=game.play, args=(PLAY_COUNT,))
-            play_threads.append(play_thread)
-            play_thread.start()
-
-        wait(play_threads)
+        wait(play_processes)
         print("  Done\n")
 
-        for game, candidate in zip(games, generation):
+        for i, (game, genome) in enumerate(zip(games, generation)):
             score = game.score
             fitness = -score[1] / PLAY_COUNT * 100
-            candidate["fitness"] = fitness
+            genome["fitness"] = fitness
             play_scores.append(score)
 
-            print(f"Player {i} {[layer[0] for layer in candidate['brain']]}")
+            print(f"Player {i} {[layer[0] for layer in genome['brain']]}")
             print(f" - Fitness: {fitness:.1f}% (wins: {score[0]}, losses: {score[1]})")
 
         print(f"\nGeneration {generation_index:04d} Genomes:")
-        for i, player in enumerate(generation):
+        for i, genome in enumerate(generation):
             print(f"\nPlayer {i}:")
-            for gene, value in player.items():
+            for gene, value in genome.items():
                 value = f"{value:.3f}" if isinstance(value, float) else value
                 print(f" - {gene}: {value}")
         print()
