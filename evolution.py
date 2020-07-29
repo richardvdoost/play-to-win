@@ -1,7 +1,7 @@
 import pickle
 import pprint
 import time
-from multiprocessing import Process
+from multiprocessing import Pool
 
 import numpy as np
 
@@ -11,8 +11,8 @@ from games import TicTacToe
 from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
-GENERATION_SIZE = 8
-TRAIN_TIME = 30
+GENERATION_SIZE = 4
+TRAIN_TIME = 5
 PLAY_COUNT = 1000
 
 activation_functions = (ReLU, Sigmoid, Softplus)
@@ -54,22 +54,26 @@ plot_data = {
 plotter = Plotter("Generation Performance", plot_data)
 
 
-def train(game, train_time):
+def train(game):
+    global TRAIN_TIME
     games_per_step = 50
     games_played = 0
     start_time = time.time()
-    while time.time() < start_time + train_time:
+    while time.time() < start_time + TRAIN_TIME:
         game.play(games_per_step)
         games_played += games_per_step
 
-    print(f" - played {games_played} games in {train_time} seconds")
+    print(f" - played {games_played} games in {TRAIN_TIME} seconds")
+    return game
 
 
-def play(game, play_count):
+def play(game):
+    global PLAY_COUNT
     game.reset_score()
     game.players[0].is_learning = False
     game.players[0].act_greedy = True
-    game.play(play_count)
+    game.play(PLAY_COUNT)
+    return game
 
 
 def brain_size(hidden_layers):
@@ -201,24 +205,28 @@ if __name__ == "__main__":
                 games.append(random_game)
 
             print(f"Training all players for {TRAIN_TIME} seconds")
-            training_processes = []
-            for game in games:
-                training_process = Process(target=train, args=(game, TRAIN_TIME))
-                training_processes.append(training_process)
-                training_process.start()
+            with Pool(GENERATION_SIZE) as pool:
+                games = pool.map(train, games)
+            # training_processes = []
+            # for game in games:
+            #     training_process = Process(target=train, args=(game, TRAIN_TIME))
+            #     training_processes.append(training_process)
+            #     training_process.start()
 
-            wait(training_processes)
+            # wait(training_processes)
             print("  Done\n")
 
             print(f"Let all players play {PLAY_COUNT} games each")
-            play_processes = []
-            for game in games:
-                play(game, PLAY_COUNT)
-                play_process = Process(target=play, args=(game, PLAY_COUNT))
-                play_processes.append(play_process)
-                play_process.start()
+            with Pool(GENERATION_SIZE) as pool:
+                games = pool.map(play, games)
+            # play_processes = []
+            # for game in games:
+            #     play(game, PLAY_COUNT)
+            #     play_process = Process(target=play, args=(game, PLAY_COUNT))
+            #     play_processes.append(play_process)
+            #     play_process.start()
 
-            wait(play_processes)
+            # wait(play_processes)
             print("  Done\n")
 
             for i, (game, genome) in enumerate(zip(games, generation)):
