@@ -25,8 +25,8 @@ generation = [
     {
         "discount_factor": 0.5,
         "reward_factor": 1,
-        "experience_batch_size": 64,
-        "experience_buffer_size": 1024,
+        "experience_batch_size": 8,
+        "experience_buffer_size": 128,
         "batch_iterations": 1,
         "learning_rate": 0.001,
         "regularization": 0.1,
@@ -51,7 +51,7 @@ plot_data = {
         "xlabel": f"Generation",
     },
 }
-plotter = Plotter("Generation Performance", plot_data)
+plotter = Plotter(f"Generation Performance - After {TRAIN_TIME} seconds of training", plot_data)
 
 
 def train(game):
@@ -226,7 +226,7 @@ if __name__ == "__main__":
             for i, genome in enumerate(generation):
                 print(f"\nPlayer {i}:")
                 for gene, value in genome.items():
-                    value = f"{value:.3f}" if isinstance(value, float) else value
+                    value = f"{value:.4f}" if isinstance(value, float) else value
                     print(f" - {gene}: {value}")
             print()
 
