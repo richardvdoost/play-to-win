@@ -1,5 +1,6 @@
 import pickle
 import pprint
+import threading
 import time
 
 import numpy as np
@@ -10,16 +11,14 @@ from games import TicTacToe
 from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
-GENERATION_SIZE = 10
-TRAIN_TIME = 10
+GENERATION_SIZE = 16
+TRAIN_TIME = 30
 PLAY_COUNT = 1000
 
 activation_functions = (ReLU, Sigmoid, Softplus)
 
 random_player = RandomPlayer()
-# trained_brain = pickle.load(open("brain/saved/player_brain-512-512_200-in-a-row.pickle", "rb",))
-# trained_player = PolicyGradientPlayer(trained_brain)
-# trained_player.is_learning = False
+
 
 # Create base / origin model
 generation = [
@@ -29,39 +28,36 @@ generation = [
         "experience_batch_size": 16,
         "experience_buffer_size": 128,
         "batch_iterations": 1,
-        "learning_rate": 0.1,
+        "learning_rate": 0.01,
         "regularization": 1,
         "brain": [],
         "fitness": 0,
     },
 ]
 
-pp = pprint.PrettyPrinter(indent=4)
-
 # Create a plot figure
 plot_data = {
     "score_random": {
-        "placement": 211,
-        "graphs": [
-            {"label": "Min/Avg/Max Losses", "color": "red"},
-            {"color": "red"},
-            {"color": "red"},
-            # {"label": "Min/Avg/Max Score", "color": "blue"},
-            # {"label": "Min/Avg/Max Score", "color": "blue"},
-            # {"label": "Min Losses", "color": "red"},
-            # {"label": "Max Wins", "color": "green"},
-        ],
-        "ylabel": f"Score against random player {PLAY_COUNT} games",
+        "placement": 121,
+        "graphs": [{"label": "Min/Avg/Max Losses", "color": "red"}, {"color": "red"}, {"color": "red"},],
+        "ylabel": f"Out of {PLAY_COUNT} games",
         "legend": True,
+        "xlabel": f"Generation",
     },
     "brain_size": {
-        "placement": 212,
+        "placement": 122,
         "graphs": [{"color": "blue"}, {"color": "blue"}, {"color": "blue"}],
-        "ylabel": f"Brain Size (parameters)",
+        "ylabel": f"Brain Size (# of parameters)",
         "xlabel": f"Generation",
     },
 }
 plotter = Plotter("Generation Performance", plot_data)
+
+
+def train(game, train_time):
+    start_time = time.time()
+    while time.time() < start_time + train_time:
+        game.play(100)
 
 
 def brain_size(hidden_layers):
@@ -73,18 +69,21 @@ def brain_size(hidden_layers):
     return parameter_count
 
 
-running = True
+def wait(threads):
+    for thread in threads:
+        thread.join()
+
+
+np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
+
 generation_index = 0
-# scores_min = []
-# scores_avg = []
-# scores_max = []
 losses_min = []
 losses_avg = []
 losses_max = []
-# wins_max = []
 brain_size_min = []
 brain_size_avg = []
 brain_size_max = []
+running = True
 while running:
     try:
 
@@ -92,7 +91,7 @@ while running:
         generation_fitness = np.array([candidate["fitness"] for candidate in generation])
         t = np.exp(generation_fitness)
         fitness_softmax = t / np.sum(t)
-        print(f"Fitness softmax: {fitness_softmax}")
+        print(f"Fitness softmax: {fitness_softmax}\n")
 
         # Create a new generation by sampling individual parents from the old generation
         generation_index += 1
@@ -103,7 +102,7 @@ while running:
             # Pick/sample a parent based on their fitness
             choice = np.random.choice(len(fitness_softmax), p=fitness_softmax)
             parent = generation[choice]
-            print(f" - Picked parent {choice} with fitness: {parent['fitness']}")
+            print(f" - Picked parent {choice:02d} with fitness: {parent['fitness']:.1f}")
 
             # Create a child based on the parent
             child = {
@@ -156,12 +155,12 @@ while running:
             new_generation.append(child)
 
         generation = new_generation
+        print()
 
-        print("Training and playing")
         players = []
         play_scores = []
+        games = []
         for i, candidate in enumerate(generation):
-            print(f"Candidate {i} {[layer[0] for layer in candidate['brain']]}")
 
             # Create a brain
             brain_topology = [(18, None)] + candidate["brain"] + [(9, Softmax)]
@@ -180,68 +179,58 @@ while running:
             )
             players.append(policy_player)
 
-            # Create the games
+            # Create the game
             random_game = TicTacToe((policy_player, random_player))
-            # trained_game = TicTacToe((policy_player, trained_player))
+            games.append(random_game)
 
-            # Start the timer and train for the given amount of time
-            print(f" - Start training for {TRAIN_TIME} seconds")
-            start_time = time.time()
-            while time.time() < start_time + TRAIN_TIME:
-                random_game.play(100)
-                # trained_game.play(100)
+        print(f"Training all players for {TRAIN_TIME} seconds")
+        training_threads = []
+        for game in games:
+            training_thread = threading.Thread(target=train, args=(game, TRAIN_TIME))
+            training_threads.append(training_thread)
+            training_thread.start()
 
-            # Play / compete against a random player, and a pre trained player
-            print(f" - Start playing {PLAY_COUNT} games")
-            policy_player.is_learning = False
-            policy_player.act_greedy = True
-            random_game.reset_score()
-            random_game.play(int(PLAY_COUNT))
-            # trained_game.reset_score()
-            # trained_game.play(int(PLAY_COUNT))
-            policy_player.act_greedy = False
+        wait(training_threads)
+        print("  Done\n")
 
-            # Save the fitness
-            score = (
-                random_game.score
-            )  # random_game.score[0] + trained_game.score[0], random_game.score[1] + trained_game.score[1]
+        print(f"Let all players play {PLAY_COUNT} games each")
+        play_threads = []
+        for player, game in zip(players, games):
+            player.is_learning = False
+            player.act_greedy = True
+
+            game.reset_score()
+            play_thread = threading.Thread(target=game.play, args=(PLAY_COUNT,))
+            play_threads.append(play_thread)
+            play_thread.start()
+
+        wait(play_threads)
+        print("  Done\n")
+
+        for game, candidate in zip(games, generation):
+            score = game.score
             fitness = -score[1] / PLAY_COUNT * 100
-            print(f" - Fitness: {fitness:.1f}% (wins: {score[0]}, losses: {score[1]})")
             candidate["fitness"] = fitness
             play_scores.append(score)
 
-        # Play against each other
-        # print("Competition")
-        # for i in range(len(players) - 1):
-        #     for j in range(i + 1, len(players)):
-        #         tictactoe_game = TicTacToe((players[i], players[j]))
-        #         tictactoe_game.play(int(PLAY_COUNT / GENERATION_SIZE - 1))
-        #         score = tictactoe_game.score
+            print(f"Player {i} {[layer[0] for layer in candidate['brain']]}")
+            print(f" - Fitness: {fitness:.1f}% (wins: {score[0]}, losses: {score[1]})")
 
-        #         print(f"{i} against {j} - score {score}")
-        #         generation[i]["fitness"] += score[0]
-        #         generation[j]["fitness"] += score[1]
+        print(f"\nGeneration {generation_index:04d} Genomes:")
+        for i, player in enumerate(generation):
+            print(f"\nPlayer {i}:")
+            for gene, value in player.items():
+                value = f"{value:.3f}" if isinstance(value, float) else value
+                print(f" - {gene}: {value}")
+        print()
 
-        # for i, candidate in enumerate(generation):
-        #     print(f"Candidate {i} {[layer[0] for layer in candidate['brain']]} - Fitness: {candidate['fitness']}")
-
-        print(f"\nGENERATION {generation_index} RESULTS:")
-        pp.pprint(generation)
-        print("\n")
-
-        # scores = np.array([score[0] - score[1] for score in play_scores])
-        # wins = np.array([score[0] for score in play_scores])
         losses = np.array([score[1] for score in play_scores])
         brains = [[layer[0] for layer in candidate["brain"]] for candidate in generation]
         brain_sizes = np.array([brain_size(layers) for layers in brains])
 
-        # scores_min.append(scores.min())
-        # scores_avg.append(scores.mean())
-        # scores_max.append(scores.max())
         losses_min.append(losses.min())
         losses_avg.append(losses.mean())
         losses_max.append(losses.max())
-        # wins_max.append(wins.max())
 
         brain_size_min.append(brain_sizes.min())
         brain_size_avg.append(brain_sizes.mean())
