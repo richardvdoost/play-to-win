@@ -26,6 +26,7 @@ class PolicyGradientPlayer(Player):
         self.episode = []
         self.experiences = []
         self.is_learning = True
+        self.act_greedy = False
 
     def take_action(self, state, allowed_actions):
 
@@ -43,19 +44,18 @@ class PolicyGradientPlayer(Player):
         # Feed the state into the brain to get the probablity distribution of actions
         action_probabilities = self.brain.think(state_reshaped).copy()
 
-        if self.is_learning:
+        if self.act_greedy:
+            choice = (action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped).argmax()
 
+        else:
             # Sample an action over the softmax probabilities
-            for _ in range(16):
+            for _ in range(32):
                 choice = np.random.choice(action_probabilities.size, p=action_probabilities.flatten())
                 if allowed_actions_reshaped[0, choice]:
                     break
 
             if not allowed_actions_reshaped[0, choice]:
                 choice = (action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped).argmax()
-
-        else:
-            choice = (action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped).argmax()
 
         self.episode.append(
             {
@@ -72,8 +72,8 @@ class PolicyGradientPlayer(Player):
         return action.reshape(allowed_actions.shape)
 
     def reward(self, reward):
-        # if self.is_learning:
-        self.episode[-1]["value"] += reward
+        if self.is_learning:
+            self.episode[-1]["value"] += reward
 
     def game_over(self):
 

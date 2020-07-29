@@ -12,20 +12,21 @@ from plotter import Plotter
 np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 
 # Hyper parameters
-PLAY_COUNT = 100
+PLAY_COUNT = 200
 
-DISCOUNT_FACTOR = 0.8
-REWARD_FACTOR = 4
-EXPERIENCE_BATCH_SIZE = 128
+DISCOUNT_FACTOR = 0.6
+REWARD_FACTOR = 2
+EXPERIENCE_BATCH_SIZE = 512
 BATCH_ITERATIONS = 1
-EXPERIENCE_BUFFER_SIZE = 8192 * 8
+EXPERIENCE_BUFFER_SIZE = 2 ** 18
 
 LEARNING_RATE = 0.001
-REGULARIZATION = 4
+REGULARIZATION = 0.1
 
 BRAIN_TOPOLOGY = (
     (18, None),
-    (1024, ReLU),
+    (128, ReLU),
+    # (512, ReLU),
     (9, Softmax),
 )
 
@@ -101,7 +102,8 @@ while running:
     try:
 
         # Compete / play (always take the highest valued allowed action)
-        policy_player.is_learning = not game_count % (10 * PLAY_COUNT)
+        policy_player.is_learning = game_count % (2 * PLAY_COUNT)
+        policy_player.act_greedy = not policy_player.is_learning
 
         tictactoe_game.play(PLAY_COUNT)
 
@@ -158,14 +160,13 @@ while running:
         brain_costs.append(brain_cost)
         brain_costs_ema.append(brain_cost_ema)
         weight_ranges.append(weight_range[1] - weight_range[0])
-        plotter.update_data(
-            {
-                "score": (scores, losses, wins, game_counts),
-                "value": (mean_experience_values, game_counts),
-                "cost": (brain_costs, brain_costs_ema, game_counts),
-                "weights": (weight_ranges, game_counts),
-            }
-        )
+        graph_data = {
+            "score": (scores, losses, wins, game_counts),
+            "value": (mean_experience_values, game_counts),
+            "cost": (brain_costs, brain_costs_ema, game_counts),
+            "weights": (weight_ranges, game_counts),
+        }
+        plotter.update_data(graph_data)
 
         # Stop when we have a perfect score (0 losses)
         if score_tuple[1] == 0:
@@ -201,9 +202,13 @@ experiences_set = (
 )
 for experiences in experiences_set:
     for experience in experiences[-10:]:
-        # for experience in policy_player.experiences[-20:]:
+        np.set_printoptions(precision=5, suppress=True, floatmode="fixed")
         print(f"allowed actions:      {experience['allowed_actions']}")
         print(f"action probabilities: {experience['action_probabilities']}")
-        print(f"value: {experience['value']:6.3f}            {experience['choice'] * '      '}<{experience['choice']}>")
+        print(
+            f"value: {experience['value']:6.3f}            {experience['choice'] * '        '}<{experience['choice']}>"
+        )
+
+        np.set_printoptions(precision=0, suppress=False)
         print(f"nudge:                {experience['nudge']}")
         print()
