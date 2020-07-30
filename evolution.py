@@ -12,9 +12,10 @@ from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
 GENERATION_SIZE = 8
-TRAIN_TIME = GENERATION_SIZE * 60
+TRAIN_TIME = GENERATION_SIZE * 40
 PLAY_COUNT = 2000
-MUTATION_STANDARD_DEVIATION = 0.04
+MUTATION_STD = 0.04
+GENE_EXPRESSION_NUDGE_STD = 0.2
 
 activation_functions = (ReLU, Sigmoid, Softplus)
 
@@ -26,14 +27,14 @@ generation = [
     {
         "discount_factor_logit": 1,
         "reward_factor": 1,
-        "experience_batch_power": 3,
-        "experience_buffer_power": 4,
+        "experience_batch_power": 4,
+        "experience_buffer_power": 8,
         "batch_iterations": 1,
         "learning_rate": 0.001,
         "regularization": 1,
-        "neuron_layers": 0.48,
-        "new_layer_neuron_count": 18,
-        "brain": [[18, ReLU]],
+        "neuron_layers": 0.4,
+        "new_layer_neuron_count": 32,
+        "brain": [[32, ReLU]],
         "fitness": 0,
     },
 ]
@@ -143,11 +144,20 @@ if __name__ == "__main__":
                 for gene, value in parent.items():
                     if gene in ("brain", "fitness"):
                         continue
-                    child[gene] = value * np.exp(np.random.normal(scale=MUTATION_STANDARD_DEVIATION))
+                    child[gene] = value * np.exp(np.random.normal(scale=MUTATION_STD))
 
                 # Evolve the brain
                 brain = parent["brain"][:]
-                brain_growth = int(min(max(-1, round(child["neuron_layers"]) - len(brain)), 1))
+                brain_growth = int(
+                    min(
+                        max(
+                            -1,
+                            round(child["neuron_layers"] + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD))
+                            - len(brain),
+                        ),
+                        1,
+                    )
+                )
                 if brain_growth == 1:
                     activation_function = activation_functions[np.random.choice(len(activation_functions))]
 
@@ -173,7 +183,7 @@ if __name__ == "__main__":
                 # Evolve the brain layer sizes
                 for i, layer in enumerate(brain):
                     brain[i] = [
-                        layer[0] * np.exp(np.random.normal(scale=MUTATION_STANDARD_DEVIATION)),
+                        layer[0] * np.exp(np.random.normal(scale=MUTATION_STD)),
                         layer[1],
                     ]
 
@@ -203,13 +213,25 @@ if __name__ == "__main__":
                     - 1,  # Range 0.0 - 1.0 (positive side of sigmoid scaled)
                     reward_factor=candidate["reward_factor"],  # Range 0.0 - inf
                     batch_iterations=int(
-                        max(1, round(candidate["batch_iterations"]))
+                        max(1, round(candidate["batch_iterations"] + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD)))
                     ),  # Range 1 - inf and rounded to whole number
                     experience_batch_size=int(
-                        2 ** min(round(candidate["experience_batch_power"]), 20)
+                        2
+                        ** min(
+                            round(
+                                candidate["experience_batch_power"] + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD)
+                            ),
+                            20,
+                        )
                     ),  # Range 2^0 - 2^20
                     experience_buffer_size=int(
-                        2 ** min(round(candidate["experience_buffer_power"]), 20)
+                        2
+                        ** min(
+                            round(
+                                candidate["experience_buffer_power"] + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD)
+                            ),
+                            20,
+                        )
                     ),  # Range 2^0 - 2^20
                 )
 
