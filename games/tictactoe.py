@@ -1,4 +1,5 @@
 import numpy as np
+import pygame
 from .game import Game
 
 
@@ -14,6 +15,15 @@ class TicTacToe(Game):
         assert np.count_nonzero(action) == 1  # Allow only one action
         assert self.state[action] == -1  # Allow only an action on an empty cell
         self.state[action] = player_index
+
+    def render(self):
+        self.screen.fill((223, 189, 150))
+
+        pygame.display.set_caption(f"Playing {self.__class__.__name__}", self.__class__.__name__)
+        pygame.display.flip()
+
+    def get_pygame_action(self):
+        return None
 
     def has_winner(self):
 

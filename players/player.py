@@ -2,8 +2,7 @@ from abc import ABC, abstractmethod
 
 
 class Player(ABC):
-    # def set_game(self, game):
-    #     self.game = game
+    game = None
 
     @abstractmethod
     def take_action(self):
@@ -15,5 +14,6 @@ class Player(ABC):
     def game_over(self):
         pass
 
-    def __str__(self):
-        pass
+    @classmethod
+    def __str__(cls):
+        return cls.__name__
