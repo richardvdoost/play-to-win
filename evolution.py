@@ -12,7 +12,7 @@ from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
 GENERATION_SIZE = 8
-TRAIN_TIME = 100
+TRAIN_TIME = GENERATION_SIZE * 120
 PLAY_COUNT = 1000
 
 activation_functions = (ReLU, Sigmoid, Softplus)
@@ -24,13 +24,13 @@ random_player = RandomPlayer()
 generation = [
     {
         "discount_factor": 0.5,
-        "reward_factor": 1,
-        "experience_batch_size": 8,
-        "experience_buffer_size": 128,
+        "reward_factor": 1.5,
+        "experience_batch_size": 512,
+        "experience_buffer_size": 2 ** 16,
         "batch_iterations": 1,
         "learning_rate": 0.001,
-        "regularization": 0.1,
-        "brain": [],
+        "regularization": 0.15,
+        "brain": [[256, ReLU]],
         "fitness": 0,
     },
 ]
@@ -39,7 +39,11 @@ generation = [
 plot_data = {
     "score_random": {
         "placement": 121,
-        "graphs": [{"label": "Min/Avg/Max Losses", "color": "red"}, {"color": "red"}, {"color": "red"},],
+        "graphs": [
+            {"label": "Min/Avg/Max Losses", "color": "red"},
+            {"color": "red"},
+            {"color": "red"},
+        ],
         "ylabel": f"Out of {PLAY_COUNT} games",
         "legend": True,
         "xlabel": f"Generation",
@@ -51,7 +55,10 @@ plot_data = {
         "xlabel": f"Generation",
     },
 }
-plotter = Plotter(f"Generation Performance - After {TRAIN_TIME} seconds of training", plot_data)
+plotter = Plotter(
+    f"Generation Performance - {TRAIN_TIME / GENERATION_SIZE} seconds of training per player",
+    plot_data,
+)
 
 
 def train(game):
@@ -90,6 +97,14 @@ def wait(processes):
         process.join()
 
 
+def print_genome(genome):
+    print("{")
+    for gene, value in genome.items():
+        value = f"{value:.5f}" if isinstance(value, float) else value
+        print(f'    "{gene}": {value},')
+    print("}\n")
+
+
 np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 
 generation_index = 0
@@ -99,6 +114,7 @@ losses_max = []
 brain_size_min = []
 brain_size_avg = []
 brain_size_max = []
+best_genome = {"fitness": -1e6}
 
 if __name__ == "__main__":
     running = True
@@ -106,7 +122,9 @@ if __name__ == "__main__":
         try:
 
             # Take the generation fitness and create a softmax distribution to sample over
-            generation_fitness = np.array([candidate["fitness"] for candidate in generation])
+            generation_fitness = np.array(
+                [candidate["fitness"] for candidate in generation]
+            )
             t = np.exp(generation_fitness)
             fitness_softmax = t / np.sum(t)
             print(f"Fitness softmax: {fitness_softmax}\n")
@@ -120,31 +138,61 @@ if __name__ == "__main__":
                 # Pick/sample a parent based on their fitness
                 choice = np.random.choice(len(fitness_softmax), p=fitness_softmax)
                 parent = generation[choice]
-                print(f" - Picked parent {choice:02d} with fitness: {parent['fitness']:.1f}")
+                print(
+                    f" - Picked parent {choice:02d} with fitness: {parent['fitness']:.1f}"
+                )
 
                 # Create a child based on the parent
                 child = {
                     "discount_factor": Sigmoid.activate(
-                        np.log(parent["discount_factor"] / (1 - parent["discount_factor"]))
+                        np.log(
+                            parent["discount_factor"] / (1 - parent["discount_factor"])
+                        )
                         + np.random.normal(scale=0.05)
                     ),
-                    "reward_factor": parent["reward_factor"] * np.exp(np.random.normal(scale=0.05)),
+                    "reward_factor": parent["reward_factor"]
+                    * np.exp(np.random.normal(scale=0.05)),
                     "experience_batch_size": int(
-                        2 ** round(np.log2(parent["experience_batch_size"]) + max(0, np.random.normal(scale=0.4)))
+                        min(
+                            2 ** 20,
+                            2
+                            ** round(
+                                np.log2(parent["experience_batch_size"])
+                                + max(0, np.random.normal(scale=0.4))
+                            ),
+                        )
                     ),
                     "experience_buffer_size": int(
-                        2 ** round(np.log2(parent["experience_buffer_size"]) + max(0, np.random.normal(scale=0.5)))
+                        min(
+                            2 ** 20,
+                            2
+                            ** round(
+                                np.log2(parent["experience_buffer_size"])
+                                + max(0, np.random.normal(scale=0.5))
+                            ),
+                        )
                     ),
-                    "batch_iterations": int(max(1, round(parent["batch_iterations"] + np.random.normal(scale=0.4)))),
-                    "learning_rate": parent["learning_rate"] * np.exp(np.random.normal(scale=0.05)),
-                    "regularization": parent["regularization"] * np.exp(np.random.normal(scale=0.05)),
+                    "batch_iterations": int(
+                        max(
+                            1,
+                            round(
+                                parent["batch_iterations"] + np.random.normal(scale=0.4)
+                            ),
+                        )
+                    ),
+                    "learning_rate": parent["learning_rate"]
+                    * np.exp(np.random.normal(scale=0.05)),
+                    "regularization": parent["regularization"]
+                    * np.exp(np.random.normal(scale=0.05)),
                 }
 
                 # Evolve the brain
                 brain = parent["brain"][:]
                 brain_growth = min(max(-1, round(np.random.normal(scale=0.3))), 1)
                 if brain_growth == 1:
-                    activation_function = activation_functions[np.random.choice(len(activation_functions))]
+                    activation_function = activation_functions[
+                        np.random.choice(len(activation_functions))
+                    ]
 
                     if len(parent["brain"]) == 0:
                         print("   Growing a brain!")
@@ -169,7 +217,10 @@ if __name__ == "__main__":
 
                 # Evolve the brain layer sizes
                 for i, layer in enumerate(brain):
-                    brain[i] = [int(round(layer[0] * np.exp(np.random.normal(scale=0.1)))), layer[1]]
+                    brain[i] = [
+                        int(round(layer[0] * np.exp(np.random.normal(scale=0.1)))),
+                        layer[1],
+                    ]
 
                 child["brain"] = brain
 
@@ -185,7 +236,9 @@ if __name__ == "__main__":
                 # Create a brain
                 brain_topology = [(18, None)] + candidate["brain"] + [(9, Softmax)]
                 brain = Brain(
-                    brain_topology, learning_rate=candidate["learning_rate"], regularization=candidate["regularization"]
+                    brain_topology,
+                    learning_rate=candidate["learning_rate"],
+                    regularization=candidate["regularization"],
                 )
 
                 # Create a player
@@ -220,18 +273,30 @@ if __name__ == "__main__":
                 play_scores.append(score)
 
                 print(f"Player {game.id} {[layer[0] for layer in genome['brain']]}")
-                print(f" - Fitness: {fitness:.1f}% (wins: {score[0]}, losses: {score[1]})")
+                print(
+                    f" - Fitness: {fitness:.1f}% (wins: {score[0]}, losses: {score[1]})"
+                )
 
             print(f"\nGeneration {generation_index:04d} Genomes:")
+            best_from_generation = {"fitness": -1e6}
             for i, genome in enumerate(generation):
                 print(f"\nPlayer {i}:")
-                for gene, value in genome.items():
-                    value = f"{value:.4f}" if isinstance(value, float) else value
-                    print(f" - {gene}: {value}")
-            print()
+                print_genome(genome)
+
+                if genome["fitness"] > best_from_generation["fitness"]:
+                    best_from_generation = genome
+
+            if best_from_generation["fitness"] > best_genome["fitness"]:
+                best_genome = best_from_generation
+                print("NEW ALL TIME BEST GENOME:")
+            else:
+                print("All time best genome:")
+            print_genome(best_genome)
 
             losses = np.array([score[1] for score in play_scores])
-            brains = [[layer[0] for layer in candidate["brain"]] for candidate in generation]
+            brains = [
+                [layer[0] for layer in candidate["brain"]] for candidate in generation
+            ]
             brain_sizes = np.array([brain_size(layers) for layers in brains])
 
             losses_min.append(losses.min())
@@ -246,7 +311,12 @@ if __name__ == "__main__":
 
             graph_data = {
                 "score_random": (losses_min, losses_avg, losses_max, generations),
-                "brain_size": (brain_size_min, brain_size_avg, brain_size_max, generations),
+                "brain_size": (
+                    brain_size_min,
+                    brain_size_avg,
+                    brain_size_max,
+                    generations,
+                ),
             }
             plotter.update_data(graph_data)
 
