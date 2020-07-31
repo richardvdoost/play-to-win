@@ -8,8 +8,13 @@ class TicTacToe(Game):
     Good old game of tic tac toe, needs 2 players
     """
 
+    board_shape = (3, 3)
+    star_points = ((1, 1),)
+    stone_radius = 42
+    border_space = 8
+
     def reset_state(self):
-        self.state = np.zeros((3, 3), dtype=int) - 1  # -1 means empty
+        self.state = np.zeros(self.board_shape, dtype=int) - 1  # -1 means empty
 
     def apply_action(self, player_index, action):
         assert np.count_nonzero(action) == 1  # Allow only one action
@@ -17,10 +22,14 @@ class TicTacToe(Game):
         self.state[action] = player_index
 
     def render(self):
-        self.screen.fill((223, 189, 150))
 
-        pygame.display.set_caption(f"Playing {self.__class__.__name__}", self.__class__.__name__)
         pygame.display.flip()
+
+    @property
+    def screen_size(self):
+        return tuple(
+            [self.border_space * 2 + dimension * self.stone_radius * 2 for dimension in self.board_shape[::-1]]
+        )
 
     def get_pygame_action(self):
         return None
