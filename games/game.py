@@ -75,7 +75,7 @@ class Game(ABC):
                 if player_index == -1:
                     continue
 
-                self.render_stone(self.screen, i, j, self.stone_colors[player_index % len(self.stone_colors)])
+                self.render_stone(self.screen, i, j, self.player_colors[player_index % len(self.player_colors)])
 
         # Update display
         pygame.display.flip()
