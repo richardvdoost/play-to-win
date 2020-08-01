@@ -3,7 +3,8 @@ from players import RandomPlayer, HumanPlayer
 
 human = HumanPlayer()
 robot = RandomPlayer()
+robot_2 = RandomPlayer()
 
-game = TicTacToe((human, robot))
+game = TicTacToe((robot_2, robot))
 
-game.play(1, render=True)
+game.play(10, render=True, pause=0.5)

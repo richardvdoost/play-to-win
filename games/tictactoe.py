@@ -1,37 +1,25 @@
 import numpy as np
-import pygame
+
 from .game import Game
 
 
 class TicTacToe(Game):
-    """
-    Good old game of tic tac toe, needs 2 players
-    """
-
     board_shape = (3, 3)
     star_points = ((1, 1),)
-    stone_radius = 42
+    grid_size = 42
     border_space = 8
-
-    def reset_state(self):
-        self.state = np.zeros(self.board_shape, dtype=int) - 1  # -1 means empty
 
     def apply_action(self, player_index, action):
         assert np.count_nonzero(action) == 1  # Allow only one action
         assert self.state[action] == -1  # Allow only an action on an empty cell
         self.state[action] = player_index
 
-    def render(self):
-
-        pygame.display.flip()
-
-    @property
-    def screen_size(self):
-        return tuple(
-            [self.border_space * 2 + dimension * self.stone_radius * 2 for dimension in self.board_shape[::-1]]
-        )
-
     def get_pygame_action(self):
+
+        # Feedback on mouse position
+
+        # Listen for mouse clicks and if they're valid, return the action
+
         return None
 
     def has_winner(self):
@@ -72,12 +60,6 @@ class TicTacToe(Game):
             return True
 
         return False
-
-    def set_winner(self, winner_index):
-        self.score[winner_index] += 1
-        self.players[winner_index].reward(1)
-        loser_index = (winner_index + 1) % len(self.players)
-        self.players[loser_index].reward(-1)
 
     @property
     def allowed_actions(self):
