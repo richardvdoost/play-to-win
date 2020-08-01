@@ -1,7 +1,6 @@
 import numpy as np
 
 from brain import Brain
-
 from .player import Player
 
 
