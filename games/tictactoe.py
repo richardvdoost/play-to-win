@@ -7,7 +7,7 @@ class TicTacToe(Game):
     board_shape = (3, 3)
     star_points = ((1, 1),)
     grid_size = 42
-    border_space = 8
+    border_space = 16
 
     def apply_action(self, player_index, action):
         assert np.count_nonzero(action) == 1  # Allow only one action
@@ -27,11 +27,11 @@ class TicTacToe(Game):
         # Check rows
         for row in range(3):
 
-            # Any row has an empty spot? No winner
+            # This row has an empty spot? No winner, continue to next row
             if np.any(self.state[row, :] == -1):
-                break
+                continue
 
-            # Any row has 3 similar spots? Winner
+            # This row has 3 similar spots? Winner
             player_index = self.state[row, 0]
             if np.all(self.state[row, 1:] == player_index):
                 self.set_winner(player_index)
@@ -40,11 +40,11 @@ class TicTacToe(Game):
         # Check colums
         for col in range(3):
 
-            # Any column has an empty spot? No winner
+            # This column has an empty spot? No winner, continue to next column
             if np.any(self.state[:, col] == -1):
-                break
+                continue
 
-            # Any column has 3 similar spots? Winner
+            # This column has 3 similar spots? Winner
             player_index = self.state[0, col]
             if np.all(self.state[1:, col] == player_index):
                 self.set_winner(player_index)
