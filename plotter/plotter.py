@@ -14,7 +14,9 @@ class Plotter:
         "red": ((206 * fac) ** exp, (145 * fac) ** exp, (120 * fac) ** exp),
         "red_transp": ((206 * fac) ** exp, (145 * fac) ** exp, (120 * fac) ** exp, 0.3),
         "green": ((181 * fac) ** exp, (206 * fac) ** exp, (168 * fac) ** exp),
+        "green_transp": ((181 * fac) ** exp, (206 * fac) ** exp, (168 * fac) ** exp, 0.3),
         "blue": ((156 * fac) ** exp, (220 * fac) ** exp, (254 * fac) ** exp),
+        "blue_transp": ((156 * fac) ** exp, (220 * fac) ** exp, (254 * fac) ** exp, 0.3),
     }
 
     def __init__(self, title, data, line_width=1.5):

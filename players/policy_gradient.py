@@ -26,10 +26,10 @@ class PolicyGradientPlayer(Player):
         self.is_learning = True
         self.act_greedy = False
 
-    def take_action(self):
+    def take_action(self, game):
 
-        state = self.game.state
-        allowed_actions = self.game.allowed_actions
+        state = game.state
+        allowed_actions = game.allowed_actions
 
         action_count = allowed_actions.size
 

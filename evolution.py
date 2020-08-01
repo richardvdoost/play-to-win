@@ -11,30 +11,30 @@ from games import TicTacToe
 from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
-GENERATION_SIZE = 8
-TRAIN_TIME = GENERATION_SIZE * 40
-PLAY_COUNT = 2000
+GENERATION_SIZE = 16
+TRAIN_TIME = GENERATION_SIZE * 60
+PLAY_COUNT = 1000
 MUTATION_STD = 0.04
 GENE_EXPRESSION_NUDGE_STD = 0.2
+EMA_FACTOR = 0.1
 
 activation_functions = (ReLU, Sigmoid, Softplus)
 
 random_player = RandomPlayer()
-
 
 # Create base / origin model
 generation = [
     {
         "discount_factor_logit": 1,
         "reward_factor": 1,
-        "experience_batch_power": 4,
-        "experience_buffer_power": 8,
+        "experience_batch_power": 3,
+        "experience_buffer_power": 6,
         "batch_iterations": 1,
         "learning_rate": 0.001,
         "regularization": 1,
-        "neuron_layers": 0.4,
-        "new_layer_neuron_count": 32,
-        "brain": [[32, ReLU]],
+        "neuron_layers": 0,
+        "new_layer_neuron_count": 10,
+        "brain": [],
         "fitness": 0,
     },
 ]
@@ -42,19 +42,20 @@ generation = [
 # Create a plot figure
 plot_data = {
     "fitness": {
-        "placement": 121,
+        "placement": 211,
         "graphs": [
-            {"label": "Worst Player", "color": "red"},
-            {"label": "Average Player", "color": "blue"},
-            {"label": "Best Player", "color": "green"},
+            {"label": "Worst Player", "color": "red_transp"},
+            {"label": "Average Player", "color": "blue_transp"},
+            {"label": "Best Player", "color": "green_transp"},
+            {"color": "green"},
         ],
         "ylabel": f"Fitness - Losing % of {PLAY_COUNT} games",
         "legend": True,
         "xlabel": f"Generation",
     },
     "brain_size": {
-        "placement": 122,
-        "graphs": [{"color": "blue"}, {"color": "blue"}, {"color": "blue"}],
+        "placement": 212,
+        "graphs": [{"color": "blue_transp"}, {"color": "blue_transp"}, {"color": "blue_transp"}, {"color": "blue"}],
         "ylabel": f"Brain Size (# of synapses)",
         "xlabel": f"Generation",
     },
@@ -112,9 +113,11 @@ generation_index = 0
 fitness_min = []
 fitness_avg = []
 fitness_max = []
+fitness_ema = []
 brain_size_min = []
 brain_size_avg = []
 brain_size_max = []
+brain_size_ema = []
 best_genome = {"fitness": -1e6}
 generation_fitness = [0]
 
@@ -281,16 +284,24 @@ if __name__ == "__main__":
             fitness_min.append(generation_fitness.min())
             fitness_avg.append(generation_fitness.mean())
             fitness_max.append(generation_fitness.max())
+            if len(fitness_ema) > 0:
+                fitness_ema.append((1 - EMA_FACTOR) * fitness_ema[-1] + EMA_FACTOR * fitness_max[-1])
+            else:
+                fitness_ema.append(fitness_max[-1])
 
             brain_size_min.append(brain_sizes.min())
             brain_size_avg.append(brain_sizes.mean())
             brain_size_max.append(brain_sizes.max())
+            if len(brain_size_ema) > 0:
+                brain_size_ema.append((1 - EMA_FACTOR) * brain_size_ema[-1] + EMA_FACTOR * brain_size_avg[-1])
+            else:
+                brain_size_ema.append(brain_size_avg[-1])
 
             generations = list(range(1, generation_index + 1))
 
             graph_data = {
-                "fitness": (fitness_min, fitness_avg, fitness_max, generations),
-                "brain_size": (brain_size_min, brain_size_avg, brain_size_max, generations,),
+                "fitness": (fitness_min, fitness_avg, fitness_max, fitness_ema, generations),
+                "brain_size": (brain_size_min, brain_size_avg, brain_size_max, brain_size_ema, generations),
             }
             plotter.update_data(graph_data)
 

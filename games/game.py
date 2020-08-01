@@ -20,8 +20,6 @@ class Game(ABC):
         """
 
         self.players = players
-        for player in self.players:
-            player.game = self
 
         self.state = None
         self.active_player_index = 0
@@ -111,7 +109,7 @@ class Game(ABC):
                 if render:
                     self.render()
 
-                action = self.players[self.active_player_index].take_action()
+                action = self.players[self.active_player_index].take_action(self)
 
                 if action is None:
                     return

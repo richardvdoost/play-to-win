@@ -2,10 +2,8 @@ from abc import ABC, abstractmethod
 
 
 class Player(ABC):
-    game = None
-
     @abstractmethod
-    def take_action(self):
+    def take_action(self, game):
         pass
 
     def reward(self, _reward):
