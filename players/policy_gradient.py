@@ -1,6 +1,5 @@
 import numpy as np
 
-from brain import Brain
 from .player import Player
 
 
@@ -27,7 +26,10 @@ class PolicyGradientPlayer(Player):
         self.is_learning = True
         self.act_greedy = False
 
-    def take_action(self, state, allowed_actions):
+    def take_action(self):
+
+        state = self.game.state
+        allowed_actions = self.game.allowed_actions
 
         action_count = allowed_actions.size
 

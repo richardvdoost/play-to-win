@@ -3,7 +3,9 @@ from .player import Player
 
 
 class RandomPlayer(Player):
-    def take_action(self, _state, allowed_actions):
+    def take_action(self):
+
+        allowed_actions = self.game.allowed_actions
 
         # Find the coordinates of all allowed actions
         allowed_coords = np.argwhere(allowed_actions)
