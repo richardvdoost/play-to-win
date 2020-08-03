@@ -6,17 +6,16 @@ class HumanPlayer(Player):
     def take_action(self, game):
         clock = pygame.time.Clock()
 
-        # Keep looping until we got a valid action from the game, or when the human wants to exit
         while True:
-
-            action = game.get_pygame_action()
-
-            if action is not None:
-                return action
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     return None
+
+            action = game.get_pygame_action()
+
+            if action is not None:
+                return action
 
             clock.tick(60)

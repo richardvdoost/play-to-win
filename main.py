@@ -5,45 +5,53 @@ import numpy as np
 from brain import Brain
 from brain.activation_functions import Identity, ReLU, Sigmoid, Softmax, Softplus
 from games import TicTacToe
-from players import PolicyGradientPlayer, RandomPlayer
+from players import PolicyGradientPlayer, RandomPlayer, HumanPlayer
 from plotter import Plotter
 
 # Set some NumPy print options
 np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 
 # Hyper parameters
-PLAY_COUNT = 200
+PLAY_COUNT = 1000
 
-DISCOUNT_FACTOR = 0.6
-REWARD_FACTOR = 2
-EXPERIENCE_BATCH_SIZE = 512
+DISCOUNT_FACTOR = 0.5
+REWARD_FACTOR = 1
+EXPERIENCE_BATCH_SIZE = 256
 BATCH_ITERATIONS = 1
-EXPERIENCE_BUFFER_SIZE = 2 ** 18
+EXPERIENCE_BUFFER_SIZE = 2 ** 15
 
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 REGULARIZATION = 0.1
 
 BRAIN_TOPOLOGY = (
     (18, None),
-    (128, ReLU),
-    # (512, ReLU),
+    (1024, ReLU),
+    (1024, ReLU),
     (9, Softmax),
 )
 
 # try:
-#     player_brain = pickle.load(open("brain/saved/winning-from-more-robust.pickle", "rb",))
-#     pre_trained_brain = pickle.load(open("brain/saved/player_brain-beating-ttt-more-robust.pickle", "rb"))
+#     robot_brain = pickle.load(open("brain/saved/winning-from-more-robust.pickle", "rb",))
+#     pre_trained_brain = pickle.load(open("brain/saved/robot_brain-beating-ttt-more-robust.pickle", "rb"))
 #     opponent = RandomPlayer()
 #     # opponent = PolicyGradientPlayer(pre_trained_brain)
 #     # opponent.is_learning = False
 #     # print("Training against a pre-trained player")
 # except Exception:
 print("Training against a random player")
-player_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, regularization=REGULARIZATION)
-opponent = RandomPlayer()
+robot_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, regularization=REGULARIZATION)
+learning_robot = PolicyGradientPlayer(
+    robot_brain,
+    discount_factor=DISCOUNT_FACTOR,
+    reward_factor=REWARD_FACTOR,
+    batch_iterations=BATCH_ITERATIONS,
+    experience_batch_size=EXPERIENCE_BATCH_SIZE,
+    experience_buffer_size=EXPERIENCE_BUFFER_SIZE,
+)
+learning_robot.act_greedy = True
 
-policy_player = PolicyGradientPlayer(
-    player_brain,
+training_robot = PolicyGradientPlayer(
+    robot_brain,
     discount_factor=DISCOUNT_FACTOR,
     reward_factor=REWARD_FACTOR,
     batch_iterations=BATCH_ITERATIONS,
@@ -51,7 +59,9 @@ policy_player = PolicyGradientPlayer(
     experience_buffer_size=EXPERIENCE_BUFFER_SIZE,
 )
 
-tictactoe_game = TicTacToe((policy_player, opponent))
+learning_game = TicTacToe((learning_robot, training_robot))
+random_game = TicTacToe((learning_robot, RandomPlayer()))
+human_game = TicTacToe((learning_robot, HumanPlayer()))
 
 # Initialize plot data
 game_counts = []
@@ -101,33 +111,28 @@ running = True
 while running:
     try:
 
-        # Compete / play (always take the highest valued allowed action)
-        policy_player.is_learning = game_count % (2 * PLAY_COUNT)
-        policy_player.act_greedy = not policy_player.is_learning
-
-        tictactoe_game.play(PLAY_COUNT)
-
+        random_game.play(int(PLAY_COUNT / 2))
+        learning_game.play(int(PLAY_COUNT / 2))
         game_count += PLAY_COUNT
 
-        score_tuple = tictactoe_game.score
+        # if game_count % (PLAY_COUNT * 2) == 0:
+        #     human_game.play(2, render=True)
+
+        score_tuple = learning_game.score[0] + random_game.score[0], learning_game.score[1] + random_game.score[1]
         score_tuple_rel = score_tuple[0] / PLAY_COUNT * 100, score_tuple[1] / PLAY_COUNT * 100
         score = score_tuple_rel[0] - score_tuple_rel[1]
         score_diff = (score - prev_score) / abs(prev_score) * 100 if prev_score else 0
         prev_score = score
 
-        # # Train (sample based on action probabilities)
-        # policy_player.is_learning = game_count > PLAY_BEFORE_TRAINING
-        # tictactoe_game.play(TRAIN_COUNT)
-
-        if policy_player.is_learning:
-            brain_cost = player_brain.cost
+        if learning_robot.is_learning:
+            brain_cost = robot_brain.cost
             brain_cost_ema = (
                 0.9 * brain_cost_ema + 0.1 * brain_cost
                 if brain_cost_ema and not np.isnan(brain_cost_ema)
                 else brain_cost
             )
 
-        mean_experience_value = policy_player.mean_experience_value
+        mean_experience_value = learning_robot.mean_experience_value
         mean_experience_value_diff = (
             (mean_experience_value - prev_mean_experience_value) / abs(prev_mean_experience_value) * 100
             if prev_mean_experience_value
@@ -135,7 +140,7 @@ while running:
         )
         prev_mean_experience_value = mean_experience_value
 
-        weight_range = player_brain.weight_range
+        weight_range = robot_brain.weight_range
 
         # Useful info
         print(
@@ -143,12 +148,12 @@ while running:
             f"Score: {score:5.1f}% {score_diff:+4.1f}%\n"
             f"Wins / Losses: {score_tuple_rel[0]:.1f}% / {score_tuple_rel[1]:.1f}%\n"
             f"Mean Experience Value: {mean_experience_value:6.3f} {mean_experience_value_diff:+4.1f}%\n"
-            f"Experience Buffer Usage: {policy_player.experience_buffer_usage * 100:5.1f}%\n"
+            f"Experience Buffer Usage: {learning_robot.experience_buffer_usage * 100:5.1f}%\n"
             f"Brain Cost: {brain_cost:4.3f}\n"
             f"Brain Cost EMA: {(0 if brain_cost_ema is None else brain_cost_ema):4.3f}\n"
             f"Weight Range: [{weight_range[0]:6.3f}, {weight_range[1]:6.3f}]\n"
-            f"Output: {player_brain.output[0,:]}\n"
-            f"Target: {player_brain.target[0,:]}\n"
+            f"Output: {robot_brain.output[0,:]}\n"
+            f"Target: {robot_brain.target[0,:]}\n"
         )
 
         # Update plot data
@@ -172,6 +177,8 @@ while running:
         if score_tuple[1] == 0:
             print(f"Played perfectly for {PLAY_COUNT} games in a row 😬 Stopping")
 
+            human_game.play(20, render=True)
+
             # Save the trained brain, and the plots
             settings_str = (
                 f"-discount_fac={DISCOUNT_FACTOR}"
@@ -184,12 +191,13 @@ while running:
             )
             for hidden_layer in BRAIN_TOPOLOGY[1:-1]:
                 settings_str += f"hl-neurons={hidden_layer[0]}{hidden_layer[1].__name__}"
-            pickle.dump(player_brain, open(f"brain/saved/player_brain{settings_str}.pickle", "wb"))
+            pickle.dump(robot_brain, open(f"brain/saved/robot_brain{settings_str}.pickle", "wb"))
             plotter.save_image(f"plots/performance-plot{settings_str}.png")
 
             running = False
 
-        tictactoe_game.reset_score()
+        learning_game.reset_score()
+        random_game.reset_score()
 
     except KeyboardInterrupt:
         running = False
@@ -197,8 +205,8 @@ while running:
 plotter.save_image(f"plots/performance-plot.png")
 
 experiences_set = (
-    [experience for experience in policy_player.experiences if experience["value"] < 0],
-    [experience for experience in policy_player.experiences if experience["value"] > 0],
+    [experience for experience in learning_robot.experiences if experience["value"] < 0],
+    [experience for experience in learning_robot.experiences if experience["value"] > 0],
 )
 for experiences in experiences_set:
     for experience in experiences[-10:]:

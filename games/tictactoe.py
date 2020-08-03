@@ -1,4 +1,5 @@
 import numpy as np
+import pygame
 
 from .game import Game
 
@@ -6,8 +7,9 @@ from .game import Game
 class TicTacToe(Game):
     board_shape = (3, 3)
     star_points = ((1, 1),)
-    grid_size = 42
+    grid_size = 72
     border_space = 16
+    mouse_was_pressed = False
 
     def apply_action(self, player_index, action):
         assert np.count_nonzero(action) == 1  # Allow only one action
@@ -17,8 +19,32 @@ class TicTacToe(Game):
     def get_pygame_action(self):
 
         # Feedback on mouse position
+        # - Get the mouse position on the board (row/column)
+        # - If it's a valid action, render a ghost stone
+        # - If we detect a click, submit the action
 
-        # Listen for mouse clicks and if they're valid, return the action
+        x, y = pygame.mouse.get_pos()
+        i, j = self.x_y_to_row_col(x, y)
+
+        if i is None or j is None:
+            self.render()
+            return None
+
+        if self.allowed_actions[i, j]:
+            self.render((i, j))
+
+            mouse_is_pressed, *_ = pygame.mouse.get_pressed()
+            if not self.mouse_was_pressed and mouse_is_pressed:
+                self.mouse_was_pressed = True
+
+            if self.mouse_was_pressed and not mouse_is_pressed:
+                self.mouse_was_pressed = False
+                action = np.zeros(self.allowed_actions.shape, dtype=bool)
+                action[i, j] = True
+                return action
+
+        else:
+            self.render()
 
         return None
 

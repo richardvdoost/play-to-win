@@ -33,11 +33,7 @@ class PolicyGradientPlayer(Player):
 
         action_count = allowed_actions.size
 
-        player_count = 2
-        player_states = []
-        for player_index in range(player_count):
-            player_states.append(state == player_index)
-
+        player_states = [state == (self.index + offset) % game.player_count for offset in range(game.player_count)]
         state_reshaped = np.concatenate(player_states) - 0.5
         state_reshaped.shape = 1, state_reshaped.size
         allowed_actions_reshaped = allowed_actions.reshape(1, action_count)

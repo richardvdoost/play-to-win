@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 
 
 class Player(ABC):
+    index = None
+
     @abstractmethod
     def take_action(self, game):
         pass

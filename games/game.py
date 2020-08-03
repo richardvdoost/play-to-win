@@ -20,6 +20,9 @@ class Game(ABC):
         """
 
         self.players = players
+        for i, player in enumerate(self.players):
+            player.index = i
+        self.player_count = len(self.players)
 
         self.state = None
         self.active_player_index = 0
@@ -28,7 +31,7 @@ class Game(ABC):
         self.screen = None
 
         self.line_positions = [
-            [self.border_space + self.grid_size + line_index * 2 * self.grid_size for line_index in range(line_count)]
+            [int(round(self.border_space + (0.5 + line_index) * self.grid_size)) for line_index in range(line_count)]
             for line_count in self.board_shape
         ]
 
@@ -40,7 +43,7 @@ class Game(ABC):
 
         self.screen = pygame.display.set_mode(self.screen_size)
 
-    def render(self):
+    def render(self, ghost_stone=None):
 
         # Reset screen
         self.screen.fill(self.background_color)
@@ -75,18 +78,33 @@ class Game(ABC):
                 if player_index == -1:
                     continue
 
-                self.render_stone(self.screen, i, j, self.player_colors[player_index % len(self.player_colors)])
+                self.render_stone(i, j, self.player_colors[player_index % len(self.player_colors)])
+
+        # Draw ghost stone based on human
+        if ghost_stone:
+            self.render_stone(*ghost_stone, self.player_colors[self.active_player_index], 160)
 
         # Update display
         pygame.display.flip()
 
-    def render_stone(self, surface, i, j, color):
+    def render_stone(self, i, j, color, alpha=255):
         x, y = self.row_col_to_x_y(i, j)
-        gfxdraw.filled_circle(surface, x, y, self.grid_size - 1, color)
-        gfxdraw.aacircle(surface, x, y, self.grid_size - 1, (8, 8, 8))
+        radius = int(round(self.grid_size / 2 - 1))
+        gfxdraw.filled_circle(self.screen, x, y, radius, (color[0], color[1], color[2], alpha))
+        gfxdraw.aacircle(self.screen, x, y, radius, (8, 8, 8, alpha))
 
     def row_col_to_x_y(self, i, j):
-        return int(self.line_positions[1][j] + 0.5), int(self.line_positions[0][i] + 0.5)
+        return int(round(self.line_positions[1][j])), int(round(self.line_positions[0][i]))
+
+    def x_y_to_row_col(self, x, y):
+        row, col = None, None
+        if self.border_space < y and y < self.border_space + self.board_shape[0] * self.grid_size:
+            row = int((y - self.border_space) / self.grid_size)
+
+        if self.border_space < x and x < self.border_space + self.board_shape[1] * self.grid_size:
+            col = int((x - self.border_space) / self.grid_size)
+
+        return row, col
 
     def reset_score(self):
         self.score = [0] * len(self.players)
@@ -94,10 +112,8 @@ class Game(ABC):
     def play(self, count, render=False, pause=None):
 
         if render:
-            self.init_pygame()
-
-        if pause is not None:
             clock = pygame.time.Clock()
+            self.init_pygame()
 
         for i in range(count):
             self.reset_state()
@@ -127,14 +143,13 @@ class Game(ABC):
                 self.active_player_index = (self.active_player_index + 1) % len(self.players)
 
             if render:
+                # Show the final board for a second before quitting
                 self.render()
-
-            if pause:
-                for _ in range(int(round(pause * 60))):
+                for _ in range(60):
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             pygame.quit()
-                            return
+                            break
                     clock.tick(60)
 
             for player in self.players:
@@ -170,7 +185,7 @@ class Game(ABC):
 
     @property
     def screen_size(self):
-        return tuple([self.border_space * 2 + dimension * self.grid_size * 2 for dimension in self.board_shape[::-1]])
+        return tuple([self.border_space * 2 + dimension * self.grid_size for dimension in self.board_shape[::-1]])
 
     @property
     @abstractmethod
