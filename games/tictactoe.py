@@ -11,10 +11,10 @@ class TicTacToe(Game):
     border_space = 16
     mouse_was_pressed = False
 
-    def apply_action(self, player_index, action):
+    def apply_action(self, action):
         assert np.count_nonzero(action) == 1  # Allow only one action
         assert self.state[action] == -1  # Allow only an action on an empty cell
-        self.state[action] = player_index
+        self.state[action] = self.active_player_index
         self.last_played_action = action
 
     def get_pygame_action(self):

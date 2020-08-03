@@ -9,9 +9,10 @@ class PolicyGradientPlayer(Player):
         brain,
         discount_factor=0.5,
         reward_factor=0.5,
-        experience_batch_size=128,
-        batch_iterations=4,
-        experience_buffer_size=2048,
+        experience_batch_size=16,
+        batch_iterations=1,
+        experience_buffer_size=1024,
+        epsilon=None,
     ):
 
         self.brain = brain
@@ -20,15 +21,16 @@ class PolicyGradientPlayer(Player):
         self.experience_batch_size = experience_batch_size
         self.batch_iterations = batch_iterations
         self.experience_buffer_size = experience_buffer_size
+        self.epsilon = epsilon
 
         self.episode = []
         self.experiences = []
         self.act_greedy = False
-        self.is_learning = True
+        self.learn_while_playing = False
 
     def take_action(self, game):
 
-        if self.is_learning:
+        if self.learn_while_playing:
             self.learn()
 
         state = game.state
@@ -44,7 +46,12 @@ class PolicyGradientPlayer(Player):
         # Feed the state into the brain to get the probablity distribution of actions
         action_probabilities = self.brain.think(state_reshaped).copy()
 
-        if self.act_greedy:
+        if self.epsilon is not None and np.random.rand() < self.epsilon:
+            allowed_coords = np.argwhere(allowed_actions)
+            allowed_coord_count = len(allowed_coords)
+            choice = np.random.choice(allowed_coord_count)
+
+        elif self.act_greedy:
             choice = (action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped).argmax()
 
         else:

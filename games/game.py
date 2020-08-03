@@ -88,8 +88,7 @@ class Game(ABC):
 
         # Draw action probabilities if needed
         if show_action_probabilities:
-            action_probabilities = self.players[self.active_player_index].brain.output.reshape(self.board_shape)
-            self.draw_action_probabilities(action_probabilities)
+            self.draw_action_probabilities()
 
         # Update display
         pygame.display.flip()
@@ -100,7 +99,9 @@ class Game(ABC):
         gfxdraw.filled_circle(self.screen, x, y, radius, (color[0], color[1], color[2], alpha))
         gfxdraw.aacircle(self.screen, x, y, radius, (8, 8, 8, alpha))
 
-    def draw_action_probabilities(self, action_probabilities):
+    def draw_action_probabilities(self):
+        action_probabilities = self.players[self.active_player_index].brain.output.reshape(self.board_shape)
+
         for i in range(self.board_shape[0]):
             for j in range(self.board_shape[1]):
                 x, y = self.row_col_to_x_y(i, j)
@@ -144,7 +145,9 @@ class Game(ABC):
                 self.init_player_colors()
                 self.render()
 
-            while not self.has_finished():
+            # Game episode loop
+            while True:
+
                 player = self.players[self.active_player_index]
 
                 action = player.take_action(self)
@@ -154,7 +157,7 @@ class Game(ABC):
                         pygame.quit()
                     return False
 
-                self.apply_action(self.active_player_index, action)
+                self.apply_action(action)
 
                 if render:
                     self.render(show_action_probabilities=player.show_action_probabilities)
@@ -166,6 +169,9 @@ class Game(ABC):
                                 pygame.quit()
                                 return False
                         clock.tick(60)
+
+                if self.has_finished():
+                    break
 
                 self.active_player_index = (self.active_player_index + 1) % len(self.players)
 
@@ -205,7 +211,7 @@ class Game(ABC):
         pass
 
     @abstractmethod
-    def apply_action(self, player_index, action):
+    def apply_action(self, action):
         pass
 
     @abstractmethod

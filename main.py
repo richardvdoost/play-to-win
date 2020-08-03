@@ -4,7 +4,7 @@ import numpy as np
 
 from brain import Brain
 from brain.activation_functions import Identity, ReLU, Sigmoid, Softmax, Softplus
-from games import TicTacToe
+from games import ConnectFour
 from players import PolicyGradientPlayer, RandomPlayer, HumanPlayer
 from plotter import Plotter
 
@@ -24,10 +24,10 @@ LEARNING_RATE = 0.0002
 REGULARIZATION = 0.5
 
 BRAIN_TOPOLOGY = (
-    (18, None),
+    (84, None),
     (2048, ReLU),
     (1024, ReLU),
-    (9, Softmax),
+    (7, Softmax),
 )
 
 # try:
@@ -35,7 +35,7 @@ BRAIN_TOPOLOGY = (
 #     pre_trained_brain = pickle.load(open("brain/saved/robot_brain-beating-ttt-more-robust.pickle", "rb"))
 #     opponent = RandomPlayer()
 #     # opponent = PolicyGradientPlayer(pre_trained_brain)
-#     # opponent.is_learning = False
+#     # opponent.learn_while_playing = False
 #     # print("Training against a pre-trained player")
 # except Exception:
 robot_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, regularization=REGULARIZATION)
@@ -48,7 +48,7 @@ learning_robot = PolicyGradientPlayer(
     experience_buffer_size=EXPERIENCE_BUFFER_SIZE,
 )
 learning_robot.act_greedy = True
-learning_robot.is_learning = False
+learning_robot.learn_while_playing = False
 
 training_robot = PolicyGradientPlayer(
     robot_brain,
@@ -58,11 +58,11 @@ training_robot = PolicyGradientPlayer(
     experience_batch_size=32,
     experience_buffer_size=EXPERIENCE_BUFFER_SIZE,
 )
-training_robot.is_learning = False
+training_robot.learn_while_playing = False
 
-learning_game = TicTacToe((learning_robot, training_robot))
-random_game = TicTacToe((learning_robot, RandomPlayer()))
-human_game = TicTacToe((learning_robot, HumanPlayer()))
+learning_game = ConnectFour((learning_robot, training_robot))
+random_game = ConnectFour((learning_robot, RandomPlayer()))
+human_game = ConnectFour((learning_robot, HumanPlayer()))
 
 # Initialize plot data
 game_counts = []
@@ -112,14 +112,10 @@ running = True
 while running:
     try:
 
-        print("playing random games")
-        random_game.play(int(PLAY_COUNT * 0.7))
-        print("playing learning games")
-        learning_game.play(int(PLAY_COUNT * 0.3))
+        learning_game.play(PLAY_COUNT)
         game_count += PLAY_COUNT
 
-        print("learning from experience")
-        learning_robot.learn(32)
+        learning_robot.learn(16)
 
         # if game_count % (PLAY_COUNT * 2) == 0:
         #     human_game.play(2, render=True)

@@ -79,7 +79,7 @@ def train(game):
 def play(game):
     global PLAY_COUNT
     game.reset_score()
-    game.players[0].is_learning = False
+    game.players[0].learn_while_playing = False
     game.players[0].act_greedy = True
     game.play(PLAY_COUNT)
     return game

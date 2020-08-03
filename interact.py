@@ -49,10 +49,10 @@ playing = True
 while playing:
 
     # Gain experience, no learning to keep it fast
-    robot.is_learning = False
+    robot.learn_while_playing = False
     random_training.play(32)
     training.play(32)
 
     # Learn on every move of the human game
-    robot.is_learning = True
+    robot.learn_while_playing = True
     playing = human_game.play(2, render=True, pause=0.5)
