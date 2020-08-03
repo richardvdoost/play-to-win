@@ -23,10 +23,13 @@ class PolicyGradientPlayer(Player):
 
         self.episode = []
         self.experiences = []
-        self.is_learning = True
         self.act_greedy = False
+        self.is_learning = True
 
     def take_action(self, game):
+
+        if self.is_learning:
+            self.learn()
 
         state = game.state
         allowed_actions = game.allowed_actions
@@ -58,9 +61,9 @@ class PolicyGradientPlayer(Player):
             {
                 "state": state_reshaped,
                 "allowed_actions": allowed_actions_reshaped,
-                "action_probabilities": action_probabilities,
+                # "action_probabilities": action_probabilities,
                 "choice": choice,
-                "value": 0,
+                "reward": 0,
             }
         )
 
@@ -69,21 +72,16 @@ class PolicyGradientPlayer(Player):
         return action.reshape(allowed_actions.shape)
 
     def reward(self, reward):
-        if self.is_learning:
-            self.episode[-1]["value"] += reward
+        self.episode[-1]["reward"] = reward
 
-    def game_over(self):
-
+    def game_over(self, _game):
         self.process_last_experiences()
 
-        if not self.is_learning:
+    def learn(self, batch_iterations=None):
+        if len(self.experiences) < 1:
             return
 
-        if len(self.experiences) < self.experience_batch_size:
-            return
-
-        for batch in self.get_experience_batches():
-
+        for batch in self.get_experience_batches(count=batch_iterations):
             samples = []
             for experience in batch:
                 samples.append({"input": experience["state"].flatten(), "nudge": experience["nudge"].flatten()})
@@ -96,11 +94,9 @@ class PolicyGradientPlayer(Player):
         reward gathered (already stored in 'value') and decay with some discount factor. Store the valued experiences.
         """
 
-        next_experience_value = 0
+        experience_value = 0
         for experience in reversed(self.episode):
-
-            experience["value"] += self.discount_factor * next_experience_value
-            next_experience_value = experience["value"]
+            experience_value = experience["reward"] + self.discount_factor * experience_value
 
             # Skip this experience if we did not have to choose (still count the value above)
             allowed_actions_count = np.count_nonzero(experience["allowed_actions"])
@@ -108,31 +104,12 @@ class PolicyGradientPlayer(Player):
                 continue
 
             # Only remember the experience if it had a significant value (negative or positive)
-            if -1e-4 < experience["value"] < 1e-4:
+            if -1e-4 < experience_value < 1e-4:
                 continue
 
-            # # Hand tuned way to recreate target
-            # target = np.log(0.001 + experience["action_probabilities"] * 0.998)
-            # target[0, experience["choice"]] += (
-            #     experience["value"] * 1.2 / (1.2 - target[0, experience["choice"]]) * self.reward_factor
-            # )
-            # target[experience["allowed_actions"] == False] -= 1e4
-            # t = np.exp(target)
-            # target = t / np.sum(t)
-
-            # # Use the alpha-toe method but indirectly by creating a target rather than using the gradient
-            # choice = experience["choice"]
-            # target = experience["action_probabilities"] * experience["allowed_actions"]
-            # target[0, choice] += max(1e-2, target[0, choice]) * experience["value"]
-
-            # experience["target"] = target
-
-            # NEW WAY: Don't use a 'target' but use a 'nudge' to nudge the brain into a certain direction regardless of
-            # the current output the brain gave at the time
-
             experience["nudge"] = np.zeros(experience["allowed_actions"].shape)
-            experience["nudge"][experience["allowed_actions"] == False] -= 1e4
-            experience["nudge"][0, experience["choice"]] = experience["value"] * self.reward_factor
+            experience["nudge"][experience["allowed_actions"] == False] -= 1e3
+            experience["nudge"][0, experience["choice"]] = experience_value * self.reward_factor
 
             # If we can add another experience do so, otherwise, replace a random experience
             if len(self.experiences) < self.experience_buffer_size:
@@ -143,13 +120,13 @@ class PolicyGradientPlayer(Player):
 
         self.episode = []
 
-    def get_experience_batches(self):
+    def get_experience_batches(self, count=None):
         """
         Return a number of random sample batches of past experiences (for batch gradient descent of the brain)
         """
         experience_count = len(self.experiences)
         batches = []
-        for _ in range(self.batch_iterations):
+        for _ in range(self.batch_iterations if count is None else count):
             experience_indexes = np.random.choice(
                 experience_count, self.experience_batch_size, replace=self.experience_batch_size > experience_count
             )
@@ -184,12 +161,5 @@ class PolicyGradientPlayer(Player):
 
     @property
     def mean_experience_value(self):
-        experience_values = np.array([experience["value"] for experience in self.experiences])
+        experience_values = np.array([experience["reward"] for experience in self.experiences])
         return experience_values.mean()
-
-    def __str__(self):
-        return (
-            f"Brain cost: {self.brain.cost():4.3f} - Mean experience value: {self.mean_experience_value:6.3f}\n\n"
-            f"Output: {self.brain.output[1,:]}\n"
-            f"Target: {self.brain.target[1,:]}"
-        )

@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 
 class Player(ABC):
     index = None
+    show_action_probabilities = False
 
     @abstractmethod
     def take_action(self, game):
@@ -11,7 +12,7 @@ class Player(ABC):
     def reward(self, _reward):
         pass
 
-    def game_over(self):
+    def game_over(self, game):
         pass
 
     @classmethod

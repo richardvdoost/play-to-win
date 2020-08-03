@@ -19,3 +19,8 @@ class HumanPlayer(Player):
                 return action
 
             clock.tick(60)
+
+    def game_over(self, game):
+        score_string = [f"{player} {game.score[player_index]}" for player_index, player in enumerate(game.players)]
+        print(" - ".join(score_string))
+

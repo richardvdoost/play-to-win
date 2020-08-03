@@ -16,16 +16,16 @@ PLAY_COUNT = 1000
 
 DISCOUNT_FACTOR = 0.5
 REWARD_FACTOR = 1
-EXPERIENCE_BATCH_SIZE = 256
+EXPERIENCE_BATCH_SIZE = 2048
 BATCH_ITERATIONS = 1
 EXPERIENCE_BUFFER_SIZE = 2 ** 15
 
-LEARNING_RATE = 0.0001
-REGULARIZATION = 0.1
+LEARNING_RATE = 0.0002
+REGULARIZATION = 0.5
 
 BRAIN_TOPOLOGY = (
     (18, None),
-    (1024, ReLU),
+    (2048, ReLU),
     (1024, ReLU),
     (9, Softmax),
 )
@@ -38,7 +38,6 @@ BRAIN_TOPOLOGY = (
 #     # opponent.is_learning = False
 #     # print("Training against a pre-trained player")
 # except Exception:
-print("Training against a random player")
 robot_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, regularization=REGULARIZATION)
 learning_robot = PolicyGradientPlayer(
     robot_brain,
@@ -49,15 +48,17 @@ learning_robot = PolicyGradientPlayer(
     experience_buffer_size=EXPERIENCE_BUFFER_SIZE,
 )
 learning_robot.act_greedy = True
+learning_robot.is_learning = False
 
 training_robot = PolicyGradientPlayer(
     robot_brain,
     discount_factor=DISCOUNT_FACTOR,
     reward_factor=REWARD_FACTOR,
     batch_iterations=BATCH_ITERATIONS,
-    experience_batch_size=EXPERIENCE_BATCH_SIZE,
+    experience_batch_size=32,
     experience_buffer_size=EXPERIENCE_BUFFER_SIZE,
 )
+training_robot.is_learning = False
 
 learning_game = TicTacToe((learning_robot, training_robot))
 random_game = TicTacToe((learning_robot, RandomPlayer()))
@@ -111,9 +112,14 @@ running = True
 while running:
     try:
 
-        random_game.play(int(PLAY_COUNT / 2))
-        learning_game.play(int(PLAY_COUNT / 2))
+        print("playing random games")
+        random_game.play(int(PLAY_COUNT * 0.7))
+        print("playing learning games")
+        learning_game.play(int(PLAY_COUNT * 0.3))
         game_count += PLAY_COUNT
+
+        print("learning from experience")
+        learning_robot.learn(32)
 
         # if game_count % (PLAY_COUNT * 2) == 0:
         #     human_game.play(2, render=True)
@@ -124,13 +130,10 @@ while running:
         score_diff = (score - prev_score) / abs(prev_score) * 100 if prev_score else 0
         prev_score = score
 
-        if learning_robot.is_learning:
-            brain_cost = robot_brain.cost
-            brain_cost_ema = (
-                0.9 * brain_cost_ema + 0.1 * brain_cost
-                if brain_cost_ema and not np.isnan(brain_cost_ema)
-                else brain_cost
-            )
+        brain_cost = robot_brain.cost
+        brain_cost_ema = (
+            0.9 * brain_cost_ema + 0.1 * brain_cost if brain_cost_ema and not np.isnan(brain_cost_ema) else brain_cost
+        )
 
         mean_experience_value = learning_robot.mean_experience_value
         mean_experience_value_diff = (

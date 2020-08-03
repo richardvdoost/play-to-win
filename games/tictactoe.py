@@ -15,13 +15,9 @@ class TicTacToe(Game):
         assert np.count_nonzero(action) == 1  # Allow only one action
         assert self.state[action] == -1  # Allow only an action on an empty cell
         self.state[action] = player_index
+        self.last_played_action = action
 
     def get_pygame_action(self):
-
-        # Feedback on mouse position
-        # - Get the mouse position on the board (row/column)
-        # - If it's a valid action, render a ghost stone
-        # - If we detect a click, submit the action
 
         x, y = pygame.mouse.get_pos()
         i, j = self.x_y_to_row_col(x, y)

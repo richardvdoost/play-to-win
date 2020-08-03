@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pygame
 from pygame import gfxdraw
+from players import HumanPlayer
 
 
 class Game(ABC):
@@ -26,6 +27,7 @@ class Game(ABC):
 
         self.state = None
         self.active_player_index = 0
+        self.last_played_action = None
         self.player_colors = [self.stone_colors[i % len(self.stone_colors)] for i in range(len(self.players))]
 
         self.screen = None
@@ -43,7 +45,7 @@ class Game(ABC):
 
         self.screen = pygame.display.set_mode(self.screen_size)
 
-    def render(self, ghost_stone=None):
+    def render(self, ghost_stone=None, show_action_probabilities=False):
 
         # Reset screen
         self.screen.fill(self.background_color)
@@ -78,20 +80,39 @@ class Game(ABC):
                 if player_index == -1:
                     continue
 
-                self.render_stone(i, j, self.player_colors[player_index % len(self.player_colors)])
+                self.draw_stone(i, j, self.player_colors[player_index % len(self.player_colors)])
 
         # Draw ghost stone based on human
         if ghost_stone:
-            self.render_stone(*ghost_stone, self.player_colors[self.active_player_index], 160)
+            self.draw_stone(*ghost_stone, self.player_colors[self.active_player_index], 160)
+
+        # Draw action probabilities if needed
+        if show_action_probabilities:
+            action_probabilities = self.players[self.active_player_index].brain.output.reshape(self.board_shape)
+            self.draw_action_probabilities(action_probabilities)
 
         # Update display
         pygame.display.flip()
 
-    def render_stone(self, i, j, color, alpha=255):
+    def draw_stone(self, i, j, color, alpha=255):
         x, y = self.row_col_to_x_y(i, j)
         radius = int(round(self.grid_size / 2 - 1))
         gfxdraw.filled_circle(self.screen, x, y, radius, (color[0], color[1], color[2], alpha))
         gfxdraw.aacircle(self.screen, x, y, radius, (8, 8, 8, alpha))
+
+    def draw_action_probabilities(self, action_probabilities):
+        for i in range(self.board_shape[0]):
+            for j in range(self.board_shape[1]):
+                x, y = self.row_col_to_x_y(i, j)
+                size = action_probabilities[i, j] * self.grid_size
+                color = (
+                    (64, 192, 32, 192)
+                    if self.allowed_actions[i, j] or self.last_played_action[i, j]
+                    else (192, 64, 32, 192)
+                )
+                pygame.gfxdraw.box(
+                    self.screen, [int(x - size / 2), int(y - size / 2), size, size], color,
+                )
 
     def row_col_to_x_y(self, i, j):
         return int(round(self.line_positions[1][j])), int(round(self.line_positions[0][i]))
@@ -118,34 +139,40 @@ class Game(ABC):
         for i in range(count):
             self.reset_state()
             self.active_player_index = i % len(self.players)
-            self.init_player_colors()
+
+            if render:
+                self.init_player_colors()
+                self.render()
 
             while not self.has_finished():
+                player = self.players[self.active_player_index]
 
-                if render:
-                    self.render()
-
-                action = self.players[self.active_player_index].take_action(self)
+                action = player.take_action(self)
 
                 if action is None:
-                    return
+                    if render:
+                        pygame.quit()
+                    return False
 
                 self.apply_action(self.active_player_index, action)
 
-                if pause:
+                if render:
+                    self.render(show_action_probabilities=player.show_action_probabilities)
+
+                if pause and not isinstance(player, HumanPlayer):
                     for _ in range(int(round(pause * 60))):
                         for event in pygame.event.get():
                             if event.type == pygame.QUIT:
                                 pygame.quit()
-                                return
+                                return False
                         clock.tick(60)
 
                 self.active_player_index = (self.active_player_index + 1) % len(self.players)
 
             if render:
-                # Show the final board for a second before quitting
                 self.render()
-                for _ in range(60):
+
+                for _ in range(int((pause if pause is not None else 1) * 60)):
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             pygame.quit()
@@ -153,7 +180,9 @@ class Game(ABC):
                     clock.tick(60)
 
             for player in self.players:
-                player.game_over()
+                player.game_over(self)
+
+        return True
 
     def init_player_colors(self):
         for i in range(len(self.players)):

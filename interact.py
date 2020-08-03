@@ -1,22 +1,22 @@
 from games import TicTacToe
 from brain import Brain
-from players import PolicyGradientPlayer, HumanPlayer
+from players import PolicyGradientPlayer, HumanPlayer, RandomPlayer
 from brain.activation_functions import ReLU, Softmax
 
 human = HumanPlayer()
 
-DISCOUNT_FACTOR = 0.5
+DISCOUNT_FACTOR = 0.6
 REWARD_FACTOR = 2
-EXPERIENCE_BATCH_SIZE = 1024
-BATCH_ITERATIONS = 1
-EXPERIENCE_BUFFER_SIZE = 2 ** 16
+EXPERIENCE_BATCH_SIZE = 512
+BATCH_ITERATIONS = 128
+EXPERIENCE_BUFFER_SIZE = 2 ** 15
 
-LEARNING_RATE = 0.002
+LEARNING_RATE = 0.0005
 REGULARIZATION = 0.1
 
 BRAIN_TOPOLOGY = (
     (18, None),
-    (1024, ReLU),
+    (512, ReLU),
     (9, Softmax),
 )
 
@@ -33,19 +33,26 @@ train_player = PolicyGradientPlayer(
     robot_brain,
     discount_factor=DISCOUNT_FACTOR,
     reward_factor=REWARD_FACTOR,
-    batch_iterations=BATCH_ITERATIONS,
+    batch_iterations=1,
     experience_batch_size=EXPERIENCE_BATCH_SIZE,
     experience_buffer_size=EXPERIENCE_BUFFER_SIZE,
 )
 
-game = TicTacToe((human, robot))
+human_game = TicTacToe((human, robot))
 training = TicTacToe((robot, train_player))
+random_training = TicTacToe((robot, RandomPlayer()))
 
 robot.act_greedy = True
-while True:
+robot.show_action_probabilities = True
 
-    game.play(2, render=True)
+playing = True
+while playing:
 
-    print(f"Score: {game.score}")
+    # Gain experience, no learning to keep it fast
+    robot.is_learning = False
+    random_training.play(32)
+    training.play(32)
 
-    training.play(200)
+    # Learn on every move of the human game
+    robot.is_learning = True
+    playing = human_game.play(2, render=True, pause=0.5)
