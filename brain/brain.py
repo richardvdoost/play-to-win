@@ -89,8 +89,8 @@ class Brain:
         self.set_input(np.array([sample["input"] for sample in samples]))
         self.forward_prop()
 
-        # Convert output into scores (squeeze values towards 0.5 for more stability)
-        scores = np.log(0.001 + self.output * 0.998)
+        # Convert output into scores (squeeze values to 0.0001-0.9999 for more stability)
+        scores = np.log(0.0001 + self.output * 0.9998)
         scores += np.array([sample["nudge"] for sample in samples])
 
         self.target = Softmax.activate(scores)
@@ -188,10 +188,18 @@ class Brain:
         return self.__regularization_factor
 
     @property
-    def weight_range(self):
+    def synapse_stats(self):
+        size = 0
+        total_absolute_weight = 0
         min_weight = np.inf
         max_weight = -np.inf
         for synapse_cluster in self.synapse_clusters:
+            size += synapse_cluster.weights.size
+            total_absolute_weight += np.abs(synapse_cluster.weights).sum()
             max_weight = max(max_weight, synapse_cluster.weights.max())
             min_weight = min(min_weight, synapse_cluster.weights.min())
-        return min_weight, max_weight
+
+        weight_mean = total_absolute_weight / size
+        weight_range = (max_weight - min_weight) / 2
+
+        return {"size": size, "weight_mean": weight_mean, "weight_range": weight_range}

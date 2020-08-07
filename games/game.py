@@ -1,17 +1,15 @@
 from abc import ABC, abstractmethod
 import numpy as np
-import pygame
-from pygame import gfxdraw
-from players import HumanPlayer
 
 
 class Game(ABC):
 
-    background_color = (224, 191, 148)
-    line_color = (48, 32, 10)
-    line_width = 3
-    star_point_radius = 5
-    stone_colors = ((8, 8, 8), (240, 240, 240), (240, 16, 16), (16, 240, 16), (16, 16, 240))
+    background_color = (255, 255, 255)
+    line_color = (0, 0, 0)
+    stone_colors = ((0, 0, 0), (255, 255, 255), (240, 16, 16), (16, 240, 16), (16, 16, 240))
+    line_width = 1
+    outer_line_width = 3
+    star_point_radius = 2
 
     def __init__(self, players):
         """
@@ -21,31 +19,37 @@ class Game(ABC):
         """
 
         self.players = players
-        for i, player in enumerate(self.players):
-            player.index = i
         self.player_count = len(self.players)
 
         self.state = None
         self.active_player_index = 0
         self.last_played_action = None
-        self.player_colors = [self.stone_colors[i % len(self.stone_colors)] for i in range(len(self.players))]
+        self.player_colors = [self.stone_colors[i % len(self.stone_colors)] for i in range(self.player_count)]
 
+        self.pygame = None
         self.screen = None
 
         self.line_positions = [
-            [int(round(self.border_space + (0.5 + line_index) * self.grid_size)) for line_index in range(line_count)]
+            [
+                self.border_space + self.grid_size / 2 + line_index * (self.grid_size + 1)
+                for line_index in range(line_count)
+            ]
             for line_count in self.board_shape
         ]
 
         self.reset_score()
 
     def init_pygame(self):
-        pygame.init()
-        pygame.display.set_caption(f"Playing {self.__class__.__name__}")
+        import pygame
+        import pygame.gfxdraw
 
+        self.pygame = pygame
+        self.pygame.init()
+        self.pygame.display.set_caption(f"Playing {self.__class__.__name__}")
         self.screen = pygame.display.set_mode(self.screen_size)
+        self.clock = self.pygame.time.Clock()
 
-    def render(self, ghost_stone=None, show_action_probabilities=False):
+    def render(self, ghost_stone=None, action_probabilities=None):
 
         # Reset screen
         self.screen.fill(self.background_color)
@@ -53,24 +57,29 @@ class Game(ABC):
         # Draw lines
         for dimension, line_count in enumerate(self.board_shape):
             for line_index in range(line_count):
+                line_width = (
+                    self.outer_line_width if line_index == 0 or line_index == line_count - 1 else self.line_width
+                )
                 start = [
                     self.line_positions[coordinate][line_index if dimension == coordinate else 0]
+                    - ((line_width - 1) / 2 if dimension != coordinate else 0)
                     for coordinate in range(1, -1, -1)
                 ]
                 end = [
                     self.line_positions[coordinate][line_index if dimension == coordinate else -1]
+                    + ((line_width - 1) / 2 if dimension != coordinate else 0)
                     for coordinate in range(1, -1, -1)
                 ]
-                pygame.draw.line(
-                    self.screen, self.line_color, tuple(start), tuple(end), self.line_width,
+                self.pygame.draw.line(
+                    self.screen, self.line_color, tuple(start), tuple(end), line_width,
                 )
 
         # Draw star points
         for star_point in self.star_points:
             x, y = self.row_col_to_x_y(*star_point)
 
-            gfxdraw.aacircle(self.screen, x, y, self.star_point_radius, self.line_color)
-            gfxdraw.filled_circle(self.screen, x, y, self.star_point_radius, self.line_color)
+            self.pygame.gfxdraw.aacircle(self.screen, x, y, self.star_point_radius, self.line_color)
+            self.pygame.gfxdraw.filled_circle(self.screen, x, y, self.star_point_radius, self.line_color)
 
         # Draw stones based on state
         for i in range(self.board_shape[0]):
@@ -87,31 +96,31 @@ class Game(ABC):
             self.draw_stone(*ghost_stone, self.player_colors[self.active_player_index], 160)
 
         # Draw action probabilities if needed
-        if show_action_probabilities:
-            self.draw_action_probabilities()
+        if action_probabilities is not None:
+            self.draw_action_probabilities(action_probabilities)
 
         # Update display
-        pygame.display.flip()
+        self.pygame.display.flip()
 
     def draw_stone(self, i, j, color, alpha=255):
         x, y = self.row_col_to_x_y(i, j)
-        radius = int(round(self.grid_size / 2 - 1))
-        gfxdraw.filled_circle(self.screen, x, y, radius, (color[0], color[1], color[2], alpha))
-        gfxdraw.aacircle(self.screen, x, y, radius, (8, 8, 8, alpha))
+        radius = int(round(self.grid_size / 2))
+        self.pygame.gfxdraw.filled_circle(self.screen, x, y, radius, (color[0], color[1], color[2], alpha))
+        self.pygame.gfxdraw.aacircle(self.screen, x, y, radius, (0, 0, 0, alpha))
 
-    def draw_action_probabilities(self):
-        action_probabilities = self.players[self.active_player_index].brain.output.reshape(self.board_shape)
+    def draw_action_probabilities(self, action_probabilities):
+        action_probabilities = action_probabilities.reshape(self.board_shape)
 
         for i in range(self.board_shape[0]):
             for j in range(self.board_shape[1]):
                 x, y = self.row_col_to_x_y(i, j)
-                size = action_probabilities[i, j] * self.grid_size
+                size = np.sqrt(action_probabilities[i, j]) * self.grid_size
                 color = (
                     (64, 192, 32, 192)
                     if self.allowed_actions[i, j] or self.last_played_action[i, j]
                     else (192, 64, 32, 192)
                 )
-                pygame.gfxdraw.box(
+                self.pygame.gfxdraw.box(
                     self.screen, [int(x - size / 2), int(y - size / 2), size, size], color,
                 )
 
@@ -129,17 +138,16 @@ class Game(ABC):
         return row, col
 
     def reset_score(self):
-        self.score = [0] * len(self.players)
+        self.score = [0] * self.player_count
 
     def play(self, count, render=False, pause=None):
 
         if render:
-            clock = pygame.time.Clock()
             self.init_pygame()
 
         for i in range(count):
             self.reset_state()
-            self.active_player_index = i % len(self.players)
+            self.active_player_index = i % self.player_count
 
             if render:
                 self.init_player_colors()
@@ -149,41 +157,42 @@ class Game(ABC):
             while True:
 
                 player = self.players[self.active_player_index]
+                player.index = self.active_player_index  # Moved from init because players can play different games
 
                 action = player.take_action(self)
 
                 if action is None:
                     if render:
-                        pygame.quit()
+                        self.pygame.quit()
                     return False
 
                 self.apply_action(action)
 
                 if render:
-                    self.render(show_action_probabilities=player.show_action_probabilities)
+                    self.render()
 
-                if pause and not isinstance(player, HumanPlayer):
-                    for _ in range(int(round(pause * 60))):
-                        for event in pygame.event.get():
-                            if event.type == pygame.QUIT:
-                                pygame.quit()
-                                return False
-                        clock.tick(60)
+                    if pause and player.is_bot:
+                        for _ in range(int(round(pause * 60))):
+                            for event in self.pygame.event.get():
+                                if event.type == self.pygame.QUIT:
+                                    self.pygame.quit()
+                                    return False
+                            self.clock.tick(60)
 
                 if self.has_finished():
                     break
 
-                self.active_player_index = (self.active_player_index + 1) % len(self.players)
+                self.active_player_index = (self.active_player_index + 1) % self.player_count
 
             if render:
                 self.render()
 
                 for _ in range(int((pause if pause is not None else 1) * 60)):
-                    for event in pygame.event.get():
-                        if event.type == pygame.QUIT:
-                            pygame.quit()
+                    for event in self.pygame.event.get():
+                        if event.type == self.pygame.QUIT:
+                            self.pygame.quit()
                             break
-                    clock.tick(60)
+                    self.clock.tick(60)
 
             for player in self.players:
                 player.game_over(self)
@@ -191,8 +200,8 @@ class Game(ABC):
         return True
 
     def init_player_colors(self):
-        for i in range(len(self.players)):
-            self.player_colors[(self.active_player_index + i) % len(self.players)] = self.stone_colors[i]
+        for i in range(self.player_count):
+            self.player_colors[(self.active_player_index + i) % self.player_count] = self.stone_colors[i]
 
     def has_finished(self):
         return self.has_winner() or not self.allowed_actions.any()
@@ -203,7 +212,7 @@ class Game(ABC):
     def set_winner(self, winner_index):
         self.score[winner_index] += 1
         self.players[winner_index].reward(1)
-        loser_index = (winner_index + 1) % len(self.players)
+        loser_index = (winner_index + 1) % self.player_count
         self.players[loser_index].reward(-1)
 
     @abstractmethod

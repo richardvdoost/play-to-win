@@ -1,10 +1,11 @@
 import pickle
+import time
 
 import numpy as np
 
 from brain import Brain
 from brain.activation_functions import Identity, ReLU, Sigmoid, Softmax, Softplus
-from games import ConnectFour
+from games import TicTacToe
 from players import PolicyGradientPlayer, RandomPlayer, HumanPlayer
 from plotter import Plotter
 
@@ -14,55 +15,30 @@ np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 # Hyper parameters
 PLAY_COUNT = 1000
 
-DISCOUNT_FACTOR = 0.5
-REWARD_FACTOR = 1
-EXPERIENCE_BATCH_SIZE = 2048
-BATCH_ITERATIONS = 1
-EXPERIENCE_BUFFER_SIZE = 2 ** 15
+EXPERIENCE_BATCH_SIZE = 1024
+BATCH_ITERATIONS = 256
+EXPERIENCE_BUFFER_SIZE = 2 ** 14
 
-LEARNING_RATE = 0.0002
-REGULARIZATION = 0.5
+DISCOUNT_RATE = 0.5
+LEARNING_RATE = 0.0005
+REGULARIZATION = 0.3
 
 BRAIN_TOPOLOGY = (
-    (84, None),
-    (2048, ReLU),
-    (1024, ReLU),
-    (7, Softmax),
+    (18, None),
+    (64, ReLU),
+    (9, Softmax),
 )
 
-# try:
-#     robot_brain = pickle.load(open("brain/saved/winning-from-more-robust.pickle", "rb",))
-#     pre_trained_brain = pickle.load(open("brain/saved/robot_brain-beating-ttt-more-robust.pickle", "rb"))
-#     opponent = RandomPlayer()
-#     # opponent = PolicyGradientPlayer(pre_trained_brain)
-#     # opponent.learn_while_playing = False
-#     # print("Training against a pre-trained player")
-# except Exception:
 robot_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, regularization=REGULARIZATION)
 learning_robot = PolicyGradientPlayer(
     robot_brain,
-    discount_factor=DISCOUNT_FACTOR,
-    reward_factor=REWARD_FACTOR,
+    discount_rate=DISCOUNT_RATE,
     batch_iterations=BATCH_ITERATIONS,
     experience_batch_size=EXPERIENCE_BATCH_SIZE,
     experience_buffer_size=EXPERIENCE_BUFFER_SIZE,
 )
-learning_robot.act_greedy = True
-learning_robot.learn_while_playing = False
 
-training_robot = PolicyGradientPlayer(
-    robot_brain,
-    discount_factor=DISCOUNT_FACTOR,
-    reward_factor=REWARD_FACTOR,
-    batch_iterations=BATCH_ITERATIONS,
-    experience_batch_size=32,
-    experience_buffer_size=EXPERIENCE_BUFFER_SIZE,
-)
-training_robot.learn_while_playing = False
-
-learning_game = ConnectFour((learning_robot, training_robot))
-random_game = ConnectFour((learning_robot, RandomPlayer()))
-human_game = ConnectFour((learning_robot, HumanPlayer()))
+random_game = TicTacToe((learning_robot, RandomPlayer()))
 
 # Initialize plot data
 game_counts = []
@@ -70,9 +46,11 @@ wins = []
 losses = []
 scores = []
 mean_experience_values = []
+mean_confidences = []
 brain_costs = []
 brain_costs_ema = []
 weight_ranges = []
+weight_means = []
 
 # Create a plot figure
 plot_data = {
@@ -86,7 +64,12 @@ plot_data = {
         "ylabel": f"Average of {PLAY_COUNT} Games",
         "legend": True,
     },
-    "value": {"placement": 222, "graphs": [{"color": "blue"}], "ylabel": f"Mean Experience Value"},
+    "experience": {
+        "placement": 222,
+        "graphs": [{"color": "green", "label": "State Value"}, {"color": "blue", "label": "Action Confidence"}],
+        "ylabel": f"Average Experience",
+        "legend": True,
+    },
     "cost": {
         "placement": 223,
         "graphs": [{"color": "red_transp"}, {"color": "red"}],
@@ -95,9 +78,10 @@ plot_data = {
     },
     "weights": {
         "placement": 224,
-        "graphs": [{"color": "blue"}],
+        "graphs": [{"color": "blue", "label": "Abs. Max"}, {"color": "green", "label": "Abs. Mean"},],
         "ylabel": f"Weights Range",
         "xlabel": f"Games Played",
+        "legend": True,
     },
 }
 plotter = Plotter("Policy Network Performance", plot_data)
@@ -108,19 +92,17 @@ prev_mean_experience_value = None
 brain_cost = 0
 brain_cost_ema = None
 perfect_score_count = 0
+start_time = time.time()
 running = True
 while running:
     try:
 
-        learning_game.play(PLAY_COUNT)
+        random_game.reset_score()
+        random_game.play(PLAY_COUNT)
+        learning_robot.learn(BATCH_ITERATIONS)
+
         game_count += PLAY_COUNT
-
-        learning_robot.learn(16)
-
-        # if game_count % (PLAY_COUNT * 2) == 0:
-        #     human_game.play(2, render=True)
-
-        score_tuple = learning_game.score[0] + random_game.score[0], learning_game.score[1] + random_game.score[1]
+        score_tuple = random_game.score
         score_tuple_rel = score_tuple[0] / PLAY_COUNT * 100, score_tuple[1] / PLAY_COUNT * 100
         score = score_tuple_rel[0] - score_tuple_rel[1]
         score_diff = (score - prev_score) / abs(prev_score) * 100 if prev_score else 0
@@ -138,19 +120,22 @@ while running:
             else 0.0
         )
         prev_mean_experience_value = mean_experience_value
+        mean_confidence = learning_robot.confidence
 
-        weight_range = robot_brain.weight_range
+        synapse_stats = robot_brain.synapse_stats
 
         # Useful info
         print(
-            f"Games Played: {game_count}\n"
-            f"Score: {score:5.1f}% {score_diff:+4.1f}%\n"
-            f"Wins / Losses: {score_tuple_rel[0]:.1f}% / {score_tuple_rel[1]:.1f}%\n"
-            f"Mean Experience Value: {mean_experience_value:6.3f} {mean_experience_value_diff:+4.1f}%\n"
+            f"Total training time:     {round(time.time() - start_time)} seconds\n"
+            f"Games Played:            {game_count}\n"
+            f"Score:                   {score:5.1f}% {score_diff:+4.1f}%\n"
+            f"Wins / Losses:           {score_tuple_rel[0]:.1f}% / {score_tuple_rel[1]:.1f}%\n"
+            f"Mean Experience Value:   {mean_experience_value:6.3f} {mean_experience_value_diff:+4.1f}%\n"
+            f"Mean Confidence:         {mean_confidence:6.3f}\n"
             f"Experience Buffer Usage: {learning_robot.experience_buffer_usage * 100:5.1f}%\n"
-            f"Brain Cost: {brain_cost:4.3f}\n"
-            f"Brain Cost EMA: {(0 if brain_cost_ema is None else brain_cost_ema):4.3f}\n"
-            f"Weight Range: [{weight_range[0]:6.3f}, {weight_range[1]:6.3f}]\n"
+            f"Brain Cost:              {brain_cost:4.3f}\n"
+            f"Brain Cost EMA:          {(0 if brain_cost_ema is None else brain_cost_ema):4.3f}\n"
+            f"Synapse Stats: {synapse_stats}\n"
             f"Output: {robot_brain.output[0,:]}\n"
             f"Target: {robot_brain.target[0,:]}\n"
         )
@@ -161,14 +146,16 @@ while running:
         losses.append(score_tuple_rel[1])
         scores.append(score)
         mean_experience_values.append(mean_experience_value)
+        mean_confidences.append(mean_confidence)
         brain_costs.append(brain_cost)
         brain_costs_ema.append(brain_cost_ema)
-        weight_ranges.append(weight_range[1] - weight_range[0])
+        weight_ranges.append(synapse_stats["weight_range"])
+        weight_means.append(synapse_stats["weight_mean"])
         graph_data = {
             "score": (scores, losses, wins, game_counts),
-            "value": (mean_experience_values, game_counts),
+            "experience": (mean_experience_values, mean_confidences, game_counts),
             "cost": (brain_costs, brain_costs_ema, game_counts),
-            "weights": (weight_ranges, game_counts),
+            "weights": (weight_ranges, weight_means, game_counts),
         }
         plotter.update_data(graph_data)
 
@@ -176,12 +163,8 @@ while running:
         if score_tuple[1] == 0:
             print(f"Played perfectly for {PLAY_COUNT} games in a row 😬 Stopping")
 
-            human_game.play(20, render=True)
-
             # Save the trained brain, and the plots
             settings_str = (
-                f"-discount_fac={DISCOUNT_FACTOR}"
-                f"-reward_factor={REWARD_FACTOR}"
                 f"-batch_iterations={BATCH_ITERATIONS}"
                 f"-experience_batch_size={EXPERIENCE_BATCH_SIZE}"
                 f"-experience_buffer_size={EXPERIENCE_BUFFER_SIZE}"
@@ -195,13 +178,10 @@ while running:
 
             running = False
 
-        learning_game.reset_score()
-        random_game.reset_score()
-
     except KeyboardInterrupt:
         running = False
 
-plotter.save_image(f"plots/performance-plot.png")
+plotter.save_image("plots/performance-plot.png")
 
 experiences_set = (
     [experience for experience in learning_robot.experiences if experience["value"] < 0],
@@ -210,12 +190,11 @@ experiences_set = (
 for experiences in experiences_set:
     for experience in experiences[-10:]:
         np.set_printoptions(precision=5, suppress=True, floatmode="fixed")
-        print(f"allowed actions:      {experience['allowed_actions']}")
         print(f"action probabilities: {experience['action_probabilities']}")
         print(
-            f"value: {experience['value']:6.3f}            {experience['choice'] * '        '}<{experience['choice']}>"
+            f"value: {experience['value']:6.3f}             {experience['choice'] * '        '}<{experience['choice']}>"
         )
 
-        np.set_printoptions(precision=0, suppress=False)
-        print(f"nudge:                {experience['nudge']}")
+        np.set_printoptions(precision=4, suppress=True, floatmode="fixed")
+        print(f"nudge (k):            {experience['nudge'] / 1e3}")
         print()

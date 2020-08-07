@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 class Player(ABC):
     index = None
     show_action_probabilities = False
+    is_bot = True
 
     @abstractmethod
     def take_action(self, game):

@@ -13,7 +13,7 @@ BRAIN_TOPOLOGY = (
     (7, Softmax),
 )
 
-BRAIN_FILEPATH = "brain/saved/connect-four-brain.pickle"
+BRAIN_FILEPATH = "brain/saved/connect-four-trainer-brain.pickle"
 
 
 playing = True
@@ -25,14 +25,15 @@ while playing:
         robot_brain = Brain(BRAIN_TOPOLOGY)
 
     robot = PolicyGradientPlayer(robot_brain)
-    robot.show_action_probabilities = True
+    robot.act_greedy = True
+    robot.show_action_probabilities = 0.4
 
     robot_opponent = PolicyGradientPlayer(robot_brain)
     robot_opponent.show_action_probabilities = True
-    # robot_opponent.act_greedy = True
+    robot_opponent.epsilon = 0.5
 
-    # human_game = ConnectFour((human, robot))
-    robot_game = ConnectFour((robot, robot_opponent))
+    human_game = ConnectFour((human, robot))
+    # robot_game = ConnectFour((robot, robot_opponent))
 
-    # playing = human_game.play(2, render=True, pause=0.5)
-    robot_game.play(2, render=True, pause=0.7)
+    playing = human_game.play(2, render=True, pause=0.5)
+    # robot_game.play(1, render=True, pause=0.7)

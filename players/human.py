@@ -1,16 +1,15 @@
-import pygame
 from .player import Player
 
 
 class HumanPlayer(Player):
-    def take_action(self, game):
-        clock = pygame.time.Clock()
+    is_bot = False
 
+    def take_action(self, game):
         while True:
 
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
+            for event in game.pygame.event.get():
+                if event.type == game.pygame.QUIT:
+                    game.pygame.quit()
                     return None
 
             action = game.get_pygame_action()
@@ -18,7 +17,7 @@ class HumanPlayer(Player):
             if action is not None:
                 return action
 
-            clock.tick(60)
+            game.clock.tick(60)
 
     def game_over(self, game):
         score_string = [f"{player} {game.score[player_index]}" for player_index, player in enumerate(game.players)]

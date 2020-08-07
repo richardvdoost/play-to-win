@@ -7,8 +7,7 @@ class PolicyGradientPlayer(Player):
     def __init__(
         self,
         brain,
-        discount_factor=0.5,
-        reward_factor=0.5,
+        discount_rate=0.5,
         experience_batch_size=16,
         batch_iterations=1,
         experience_buffer_size=1024,
@@ -16,8 +15,7 @@ class PolicyGradientPlayer(Player):
     ):
 
         self.brain = brain
-        self.discount_factor = discount_factor
-        self.reward_factor = reward_factor
+        self.discount_rate = discount_rate
         self.experience_batch_size = experience_batch_size
         self.batch_iterations = batch_iterations
         self.experience_buffer_size = experience_buffer_size
@@ -29,9 +27,6 @@ class PolicyGradientPlayer(Player):
         self.learn_while_playing = False
 
     def take_action(self, game):
-
-        if self.learn_while_playing:
-            self.learn()
 
         state = game.state
         allowed_actions = game.allowed_actions
@@ -46,17 +41,24 @@ class PolicyGradientPlayer(Player):
         # Feed the state into the brain to get the probablity distribution of actions
         action_probabilities = self.brain.think(state_reshaped).copy()
 
+        if self.show_action_probabilities:
+            ticks = self.show_action_probabilities * 60
+            for tick in range(int(ticks)):
+                scale = 1 - (1 - (tick / ticks)) ** 2
+                game.render(action_probabilities=action_probabilities * scale)
+                game.clock.tick(60)
+
         if self.epsilon is not None and np.random.rand() < self.epsilon:
-            allowed_coords = np.argwhere(allowed_actions)
+            allowed_coords = np.argwhere(allowed_actions_reshaped)
             allowed_coord_count = len(allowed_coords)
-            choice = np.random.choice(allowed_coord_count)
+            choice = allowed_coords[np.random.choice(allowed_coord_count)][1]
 
         elif self.act_greedy:
             choice = (action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped).argmax()
 
         else:
             # Sample an action over the softmax probabilities
-            for _ in range(32):
+            for _ in range(16):
                 choice = np.random.choice(action_probabilities.size, p=action_probabilities.flatten())
                 if allowed_actions_reshaped[0, choice]:
                     break
@@ -64,12 +66,16 @@ class PolicyGradientPlayer(Player):
             if not allowed_actions_reshaped[0, choice]:
                 choice = (action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped).argmax()
 
+        # Remember how confident we are to take the action we're about to take
+        confidence = action_probabilities[0, choice]
+
         self.episode.append(
             {
                 "state": state_reshaped,
                 "allowed_actions": allowed_actions_reshaped,
-                # "action_probabilities": action_probabilities,
+                "action_probabilities": action_probabilities,  # Debug only
                 "choice": choice,
+                "confidence": confidence,
                 "reward": 0,
             }
         )
@@ -83,6 +89,9 @@ class PolicyGradientPlayer(Player):
 
     def game_over(self, _game):
         self.process_last_experiences()
+
+        if self.learn_while_playing:
+            self.learn()
 
     def learn(self, batch_iterations=None):
         if len(self.experiences) < 1:
@@ -98,12 +107,13 @@ class PolicyGradientPlayer(Player):
     def process_last_experiences(self):
         """
         Go over all experiences in the last episode in reverse order. Assign values to every action taken based on the
-        reward gathered (already stored in 'value') and decay with some discount factor. Store the valued experiences.
+        reward gathered and the value of the next state (discounted with how confident we are to arrive in that next state)
         """
 
         experience_value = 0
         for experience in reversed(self.episode):
-            experience_value = experience["reward"] + self.discount_factor * experience_value
+            experience_value = experience["reward"] + experience_value * self.discount_rate * experience["confidence"]
+            experience["value"] = experience_value  # Debug only
 
             # Skip this experience if we did not have to choose (still count the value above)
             allowed_actions_count = np.count_nonzero(experience["allowed_actions"])
@@ -116,7 +126,7 @@ class PolicyGradientPlayer(Player):
 
             experience["nudge"] = np.zeros(experience["allowed_actions"].shape)
             experience["nudge"][experience["allowed_actions"] == False] -= 1e3
-            experience["nudge"][0, experience["choice"]] = experience_value * self.reward_factor
+            experience["nudge"][0, experience["choice"]] = experience_value
 
             # If we can add another experience do so, otherwise, replace a random experience
             if len(self.experiences) < self.experience_buffer_size:
@@ -168,5 +178,10 @@ class PolicyGradientPlayer(Player):
 
     @property
     def mean_experience_value(self):
-        experience_values = np.array([experience["reward"] for experience in self.experiences])
+        experience_values = np.array([experience["value"] for experience in self.experiences])
         return experience_values.mean()
+
+    @property
+    def confidence(self):
+        confidence_values = np.array([experience["confidence"] for experience in self.experiences])
+        return confidence_values.mean()

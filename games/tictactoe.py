@@ -1,5 +1,4 @@
 import numpy as np
-import pygame
 
 from .game import Game
 
@@ -13,13 +12,15 @@ class TicTacToe(Game):
 
     def apply_action(self, action):
         assert np.count_nonzero(action) == 1  # Allow only one action
-        assert self.state[action] == -1  # Allow only an action on an empty cell
+        assert (
+            self.state[action] == -1
+        ), f"Only actions on empty cells are allowed. State:\n{self.state}\nAction:\n{action}\n"
         self.state[action] = self.active_player_index
         self.last_played_action = action
 
     def get_pygame_action(self):
 
-        x, y = pygame.mouse.get_pos()
+        x, y = self.pygame.mouse.get_pos()
         i, j = self.x_y_to_row_col(x, y)
 
         if i is None or j is None:
@@ -29,7 +30,7 @@ class TicTacToe(Game):
         if self.allowed_actions[i, j]:
             self.render((i, j))
 
-            mouse_is_pressed, *_ = pygame.mouse.get_pressed()
+            mouse_is_pressed, *_ = self.pygame.mouse.get_pressed()
             if not self.mouse_was_pressed and mouse_is_pressed:
                 self.mouse_was_pressed = True
 

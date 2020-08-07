@@ -1,20 +1,21 @@
 import numpy as np
-import pygame
 
 from .game import Game
 
 
 class ConnectFour(Game):
     board_shape = (6, 7)
-    star_points = ((1, 1), (1, 3), (1, 5), (4, 1), (4, 3), (4, 5))
-    grid_size = 64
+    grid_size = 48
     border_space = 16
+    star_points = ((1, 1), (1, 3), (1, 5), (4, 1), (4, 3), (4, 5))
     mouse_was_pressed = False
 
     def apply_action(self, action):
         assert np.count_nonzero(action) == 1  # Allow only one action
 
         col = np.argwhere(action)[0, 0]
+        assert self.state[0, col] == -1, f"Trying to apply invalid action:\n{action}\nBoard state:\n{self.state}"
+
         row = self.falling_stone_row(col)
 
         self.state[row, col] = self.active_player_index
@@ -26,7 +27,7 @@ class ConnectFour(Game):
 
     def get_pygame_action(self):
 
-        x, y = pygame.mouse.get_pos()
+        x, y = self.pygame.mouse.get_pos()
         i, j = self.x_y_to_row_col(x, y)
 
         if i is None or j is None:
@@ -38,7 +39,7 @@ class ConnectFour(Game):
             stone_i = self.falling_stone_row(j)
             self.render(ghost_stone=(stone_i, j))
 
-            mouse_is_pressed, *_ = pygame.mouse.get_pressed()
+            mouse_is_pressed, *_ = self.pygame.mouse.get_pressed()
             if not self.mouse_was_pressed and mouse_is_pressed:
                 self.mouse_was_pressed = True
 
@@ -53,15 +54,15 @@ class ConnectFour(Game):
 
         return None
 
-    def draw_action_probabilities(self):
-        action_probabilities = self.players[self.active_player_index].brain.output.reshape(self.board_shape[1])
+    def draw_action_probabilities(self, action_probabilities):
+        action_probabilities = action_probabilities.reshape(self.board_shape[1])
 
         for j in range(self.board_shape[1]):
             i = self.falling_stone_row(j)
             x, y = self.row_col_to_x_y(i, j)
-            size = action_probabilities[j] * self.grid_size
+            size = np.sqrt(action_probabilities[j]) * self.grid_size
             color = (64, 192, 32, 192) if self.allowed_actions[j] or self.last_played_action[j] else (192, 64, 32, 192)
-            pygame.gfxdraw.box(
+            self.pygame.gfxdraw.box(
                 self.screen, [int(x - size / 2), int(y - size / 2), size, size], color,
             )
 
