@@ -13,7 +13,7 @@ BRAIN_TOPOLOGY = (
     (7, Softmax),
 )
 
-BRAIN_FILEPATH = "brain/saved/connect-four-trainer-brain.pickle"
+BRAIN_FILEPATH = "brain/saved/connect-four-brain.pickle"
 
 
 playing = True

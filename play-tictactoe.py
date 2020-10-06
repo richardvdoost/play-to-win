@@ -6,7 +6,7 @@ from brain.activation_functions import ReLU, Softmax
 
 human = HumanPlayer()
 
-BRAIN_FILEPATH = "brain/saved/tictactoe-trainer-brain.pickle"
+BRAIN_FILEPATH = "brain/saved/tictactoe-brain.pickle"
 
 playing = True
 while playing:
