@@ -1,56 +1,54 @@
-import pickle
-import pprint
 import time
 from multiprocessing import Pool
 
 import numpy as np
 
 from brain import Brain
-from brain.activation_functions import ReLU, Sigmoid, Softmax, Softplus
+from brain.activation_functions import LeakyReLU, ReLU, Sigmoid, Softmax, Softplus
 from games import TicTacToe
 from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
-GENERATION_SIZE = 16
-TRAIN_TIME = GENERATION_SIZE * 40
+GENERATION_SIZE = 8
+TRAIN_TIME = GENERATION_SIZE * 60
 PLAY_COUNT = 1000
 MUTATION_STD = 0.04
 GENE_EXPRESSION_NUDGE_STD = 0.1
 EMA_FACTOR = 0.1
 
-activation_functions = (ReLU, Sigmoid, Softplus)
+activation_functions = (ReLU, Sigmoid, Softplus, LeakyReLU)
 
 random_player = RandomPlayer()
 
 generation = [
     # Create base / origin model
     {
-        "discount_factor_logit": 1,
-        "reward_factor": 1,
+        "discount_rate_logit": 1,
+        "negative_memory_factor": 1,
         "experience_batch_power": 3,
         "experience_buffer_power": 6,
         "batch_iterations": 1,
         "learning_rate": 0.001,
         "regularization": 1,
-        "neuron_layers": 0.2,
+        "neuron_layers": 0.4,
         "new_layer_neuron_count": 10,
         "brain": [],
         "fitness": 0,
     },
     # All time best genome with 40s of learning:
-    {
-        "discount_factor_logit": 0.46709,
-        "reward_factor": 2.49870,
-        "experience_batch_power": 5.70260,
-        "experience_buffer_power": 14.38792,
-        "batch_iterations": 1.43842,
-        "learning_rate": 0.00464,
-        "regularization": 0.61216,
-        "neuron_layers": 1.27344,
-        "new_layer_neuron_count": 29,
-        "brain": [[32.45, Softplus]],
-        "fitness": 0.00000,
-    },
+    # {
+    #     "discount_rate_logit": 0.46709,
+    #     "negative_memory_factor": 1,
+    #     "experience_batch_power": 5.70260,
+    #     "experience_buffer_power": 14.38792,
+    #     "batch_iterations": 1.43842,
+    #     "learning_rate": 0.00464,
+    #     "regularization": 0.61216,
+    #     "neuron_layers": 1.27344,
+    #     "new_layer_neuron_count": 29,
+    #     "brain": [[32.45, Softplus]],
+    #     "fitness": 0.00000,
+    # },
 ]
 
 # Create a plot figure
@@ -69,12 +67,20 @@ plot_data = {
     },
     "brain_size": {
         "placement": 212,
-        "graphs": [{"color": "blue_transp"}, {"color": "blue_transp"}, {"color": "blue_transp"}, {"color": "blue"}],
+        "graphs": [
+            {"color": "blue_transp"},
+            {"color": "blue_transp"},
+            {"color": "blue_transp"},
+            {"color": "blue"},
+        ],
         "ylabel": f"Brain Size (# of synapses)",
         "xlabel": f"Generation",
     },
 }
-plotter = Plotter(f"Generation Performance - {TRAIN_TIME / GENERATION_SIZE} seconds of training per player", plot_data,)
+plotter = Plotter(
+    f"Generation Performance - {TRAIN_TIME / GENERATION_SIZE} seconds of training per player",
+    plot_data,
+)
 
 
 def train(game):
@@ -169,14 +175,18 @@ if __name__ == "__main__":
                     min(
                         max(
                             -1,
-                            round(child["neuron_layers"] + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD))
+                            round(
+                                child["neuron_layers"] + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD)
+                            )
                             - len(brain),
                         ),
                         1,
                     )
                 )
                 if brain_growth == 1:
-                    activation_function = activation_functions[np.random.choice(len(activation_functions))]
+                    activation_function = activation_functions[
+                        np.random.choice(len(activation_functions))
+                    ]
 
                     if len(brain) == 0:
                         print("   Growing a brain!")
@@ -226,17 +236,24 @@ if __name__ == "__main__":
                 # Create a player
                 policy_player = PolicyGradientPlayer(
                     brain,
-                    discount_factor=Sigmoid.activate(candidate["discount_factor_logit"]) * 2
+                    discount_rate=Sigmoid.activate(candidate["discount_rate_logit"]) * 2
                     - 1,  # Range 0.0 - 1.0 (positive side of sigmoid scaled)
-                    reward_factor=candidate["reward_factor"],  # Range 0.0 - inf
+                    negative_memory_factor=candidate["negative_memory_factor"],  # Range 0.0 - inf
                     batch_iterations=int(
-                        max(1, round(candidate["batch_iterations"] + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD)))
+                        max(
+                            1,
+                            round(
+                                candidate["batch_iterations"]
+                                + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD)
+                            ),
+                        )
                     ),  # Range 1 - inf and rounded to whole number
                     experience_batch_size=int(
                         2
                         ** min(
                             round(
-                                candidate["experience_batch_power"] + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD)
+                                candidate["experience_batch_power"]
+                                + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD)
                             ),
                             20,
                         )
@@ -245,7 +262,8 @@ if __name__ == "__main__":
                         2
                         ** min(
                             round(
-                                candidate["experience_buffer_power"] + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD)
+                                candidate["experience_buffer_power"]
+                                + np.random.normal(scale=GENE_EXPRESSION_NUDGE_STD)
                             ),
                             20,
                         )
@@ -307,7 +325,9 @@ if __name__ == "__main__":
             brain_size_avg.append(brain_sizes.mean())
             brain_size_max.append(brain_sizes.max())
             if len(brain_size_ema) > 0:
-                brain_size_ema.append((1 - EMA_FACTOR) * brain_size_ema[-1] + EMA_FACTOR * brain_size_avg[-1])
+                brain_size_ema.append(
+                    (1 - EMA_FACTOR) * brain_size_ema[-1] + EMA_FACTOR * brain_size_avg[-1]
+                )
             else:
                 brain_size_ema.append(brain_size_avg[-1])
 
@@ -315,11 +335,17 @@ if __name__ == "__main__":
 
             graph_data = {
                 "fitness": (fitness_min, fitness_avg, fitness_max, fitness_ema, generations),
-                "brain_size": (brain_size_min, brain_size_avg, brain_size_max, brain_size_ema, generations),
+                "brain_size": (
+                    brain_size_min,
+                    brain_size_avg,
+                    brain_size_max,
+                    brain_size_ema,
+                    generations,
+                ),
             }
             plotter.update_data(graph_data)
 
         except KeyboardInterrupt:
             running = False
 
-    plotter.save_image(f"plots/evolution.png")
+    plotter.save_image("plots/evolution.png")

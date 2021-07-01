@@ -135,7 +135,7 @@ class Brain:
         return output
 
     @property
-    def cost(self):
+    def error(self):
         if self.output_layer.activation_type == "Sigmoid":
             cost_matrix = -1 * self.target * np.ma.log(self.output) - (1 - self.target) * np.ma.log(
                 1 - self.output
@@ -145,7 +145,11 @@ class Brain:
         else:
             raise Exception(f"Wrong output layer activation type: {self.output_layer.activation_type}")
 
-        cost = np.sum(cost_matrix) / self.batch_size
+        return np.sum(cost_matrix) / self.batch_size
+
+    @property
+    def cost(self):
+        cost = self.error
 
         if self.regularization_factor is not None:
             total_weights_squared = 0

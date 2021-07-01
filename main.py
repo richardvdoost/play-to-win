@@ -4,28 +4,30 @@ import time
 import numpy as np
 
 from brain import Brain
-from brain.activation_functions import Identity, ReLU, Sigmoid, Softmax, Softplus
+from brain.activation_functions import LeakyReLU, Softmax
 from games import TicTacToe
-from players import HumanPlayer, PolicyGradientPlayer, RandomPlayer
+from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
 # Set some NumPy print options
 np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 
+
 # Hyper parameters
 PLAY_COUNT = 1000
 
-EXPERIENCE_BATCH_SIZE = 1024
-BATCH_ITERATIONS = 256
+EXPERIENCE_BATCH_SIZE = 2048
+BATCH_ITERATIONS = 64
 EXPERIENCE_BUFFER_SIZE = 2 ** 14
+NEGATIVE_MEMORY_FACTOR = 2
 
 DISCOUNT_RATE = 0.5
-LEARNING_RATE = 0.0005
-REGULARIZATION = 0.3
+LEARNING_RATE = 0.001
+REGULARIZATION = 0.5
 
 BRAIN_TOPOLOGY = (
     (18, None),
-    (64, ReLU),
+    (64, LeakyReLU),
     (9, Softmax),
 )
 
@@ -36,6 +38,7 @@ learning_robot = PolicyGradientPlayer(
     batch_iterations=BATCH_ITERATIONS,
     experience_batch_size=EXPERIENCE_BATCH_SIZE,
     experience_buffer_size=EXPERIENCE_BUFFER_SIZE,
+    negative_memory_factor=NEGATIVE_MEMORY_FACTOR,
 )
 
 random_game = TicTacToe((learning_robot, RandomPlayer()))
@@ -70,14 +73,14 @@ plot_data = {
             {"color": "green", "label": "State Value"},
             {"color": "blue", "label": "Action Confidence"},
         ],
-        "ylabel": f"Average Experience",
+        "ylabel": "Average Experience",
         "legend": True,
     },
     "cost": {
         "placement": 223,
         "graphs": [{"color": "red_transp"}, {"color": "red"}],
-        "ylabel": f"Brain Cost of Last Batch",
-        "xlabel": f"Games Played",
+        "ylabel": "Brain Cost of Last Batch (no regularization)",
+        "xlabel": "Games Played",
     },
     "weights": {
         "placement": 224,
@@ -103,9 +106,10 @@ running = True
 while running:
     try:
 
+        # Perform
+        learning_robot.act_greedy = True
         random_game.reset_score()
         random_game.play(PLAY_COUNT)
-        learning_robot.learn(BATCH_ITERATIONS)
 
         game_count += PLAY_COUNT
         score_tuple = random_game.score
@@ -114,7 +118,13 @@ while running:
         score_diff = (score - prev_score) / abs(prev_score) * 100 if prev_score else 0
         prev_score = score
 
-        brain_cost = robot_brain.cost
+        # Train / Learn
+        learning_robot.act_greedy = False
+        random_game.reset_score()
+        random_game.play(PLAY_COUNT)
+        learning_robot.learn(BATCH_ITERATIONS)
+
+        brain_cost = robot_brain.error
         brain_cost_ema = (
             0.9 * brain_cost_ema + 0.1 * brain_cost
             if brain_cost_ema and not np.isnan(brain_cost_ema)
@@ -191,13 +201,13 @@ while running:
 
 plotter.save_image("plots/performance-plot.png")
 
-experiences_set = (
-    [experience for experience in learning_robot.experiences if experience["value"] < 0],
-    [experience for experience in learning_robot.experiences if experience["value"] > 0],
-)
+experiences_set = (learning_robot.negative_experiences, learning_robot.positive_experiences)
 for experiences in experiences_set:
     for experience in experiences[-10:]:
         np.set_printoptions(precision=5, suppress=True, floatmode="fixed")
+        print(
+            f"allowed actions:      [[{'   '.join(str(a) + (' ' if a else '') for a in experience['allowed_actions'].flatten())}  ]]"
+        )
         print(f"action probabilities: {experience['action_probabilities']}")
         print(
             f"value: {experience['value']:6.3f}             {experience['choice'] * '        '}<{experience['choice']}>"

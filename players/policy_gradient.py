@@ -12,6 +12,7 @@ class PolicyGradientPlayer(Player):
         batch_iterations=1,
         experience_buffer_size=1024,
         epsilon=None,
+        negative_memory_factor=1,
     ):
 
         self.brain = brain
@@ -20,9 +21,11 @@ class PolicyGradientPlayer(Player):
         self.batch_iterations = batch_iterations
         self.experience_buffer_size = experience_buffer_size
         self.epsilon = epsilon
+        self.negative_memory_factor = negative_memory_factor
 
         self.episode = []
-        self.experiences = []
+        self.positive_experiences = []
+        self.negative_experiences = []
         self.act_greedy = False
         self.learn_while_playing = False
 
@@ -33,7 +36,9 @@ class PolicyGradientPlayer(Player):
 
         action_count = allowed_actions.size
 
-        player_states = [state == (self.index + offset) % game.player_count for offset in range(game.player_count)]
+        player_states = [
+            state == (self.index + offset) % game.player_count for offset in range(game.player_count)
+        ]
         state_reshaped = np.concatenate(player_states) - 0.5
         state_reshaped.shape = 1, state_reshaped.size
         allowed_actions_reshaped = allowed_actions.reshape(1, action_count)
@@ -54,7 +59,9 @@ class PolicyGradientPlayer(Player):
             choice = allowed_coords[np.random.choice(allowed_coord_count)][1]
 
         elif self.act_greedy:
-            choice = (action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped).argmax()
+            choice = (
+                action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped
+            ).argmax()
 
         else:
             # Sample an action over the softmax probabilities
@@ -64,7 +71,9 @@ class PolicyGradientPlayer(Player):
                     break
 
             if not allowed_actions_reshaped[0, choice]:
-                choice = (action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped).argmax()
+                choice = (
+                    action_probabilities * allowed_actions_reshaped + 1e-8 * allowed_actions_reshaped
+                ).argmax()
 
         # Remember how confident we are to take the action we're about to take
         confidence = action_probabilities[0, choice]
@@ -94,13 +103,15 @@ class PolicyGradientPlayer(Player):
             self.learn()
 
     def learn(self, batch_iterations=None):
-        if len(self.experiences) < 1:
+        if len(self.positive_experiences) + len(self.negative_experiences) == 0:
             return
 
         for batch in self.get_experience_batches(count=batch_iterations):
             samples = []
             for experience in batch:
-                samples.append({"input": experience["state"].flatten(), "nudge": experience["nudge"].flatten()})
+                samples.append(
+                    {"input": experience["state"].flatten(), "nudge": experience["nudge"].flatten()}
+                )
 
             self.brain.nudge(samples)
 
@@ -112,8 +123,10 @@ class PolicyGradientPlayer(Player):
 
         experience_value = 0
         for experience in reversed(self.episode):
-            experience_value = experience["reward"] + experience_value * self.discount_rate * experience["confidence"]
-            experience["value"] = experience_value  # Debug only
+            experience_value = (
+                experience["reward"] + experience_value * self.discount_rate * experience["confidence"]
+            )
+            experience["value"] = experience_value
 
             # Skip this experience if we did not have to choose (still count the value above)
             allowed_actions_count = np.count_nonzero(experience["allowed_actions"])
@@ -125,29 +138,61 @@ class PolicyGradientPlayer(Player):
                 continue
 
             experience["nudge"] = np.zeros(experience["allowed_actions"].shape)
-            experience["nudge"][experience["allowed_actions"] == False] -= 1e3
-            experience["nudge"][0, experience["choice"]] = experience_value
+            forbidden_mask = experience["allowed_actions"] == False
+            experience["nudge"][forbidden_mask] -= (
+                1e3 * experience["action_probabilities"][forbidden_mask]
+            )
+
+            # Separate positive and negative experiences
+            half_buffer_size = self.experience_buffer_size // 2
+            if experience_value > 0:
+                nudge = experience_value
+                experiences = self.positive_experiences
+            else:
+                # Nudge harder on negative experiences
+                # (try to avoid getting overconfident when winning the majority of the time)
+                nudge = self.negative_memory_factor * experience_value
+                experiences = self.negative_experiences
+
+            experience["nudge"][0, experience["choice"]] = nudge
 
             # If we can add another experience do so, otherwise, replace a random experience
-            if len(self.experiences) < self.experience_buffer_size:
-                self.experiences.append(experience)
+            if len(experiences) < half_buffer_size:
+                experiences.append(experience)
             else:
-                random_experience_index = np.random.choice(self.experience_buffer_size)
-                self.experiences[random_experience_index] = experience
+                random_experience_index = np.random.choice(half_buffer_size)
+                experiences[random_experience_index] = experience
 
         self.episode = []
 
     def get_experience_batches(self, count=None):
         """
-        Return a number of random sample batches of past experiences (for batch gradient descent of the brain)
+        Return a number of random sample batches of past experiences
+        (for batch gradient descent of the brain)
+
+        Keep a 50/50 balance between positive and negative experiences
         """
-        experience_count = len(self.experiences)
+        positive_experience_count = len(self.positive_experiences)
+        negative_experience_count = len(self.negative_experiences)
+
+        half_batch = self.experience_batch_size // 2
+
         batches = []
         for _ in range(self.batch_iterations if count is None else count):
-            experience_indexes = np.random.choice(
-                experience_count, self.experience_batch_size, replace=self.experience_batch_size > experience_count
+            positive_experience_indexes = np.random.choice(
+                positive_experience_count,
+                half_batch,
+                replace=half_batch > positive_experience_count,
             )
-            batches.append([self.experiences[i] for i in experience_indexes])
+            negative_experience_indexes = np.random.choice(
+                negative_experience_count,
+                half_batch,
+                replace=half_batch > negative_experience_count,
+            )
+            batches.append(
+                [self.positive_experiences[i] for i in positive_experience_indexes]
+                + [self.negative_experiences[i] for i in negative_experience_indexes]
+            )
 
         return batches
 
@@ -174,14 +219,23 @@ class PolicyGradientPlayer(Player):
 
     @property
     def experience_buffer_usage(self):
-        return len(self.experiences) / self.experience_buffer_size
+        return (
+            len(self.positive_experiences) + len(self.negative_experiences)
+        ) / self.experience_buffer_size
 
     @property
     def mean_experience_value(self):
-        experience_values = np.array([experience["value"] for experience in self.experiences])
+        experience_values = np.array(
+            [experience["value"] for experience in self.positive_experiences + self.negative_experiences]
+        )
         return experience_values.mean()
 
     @property
     def confidence(self):
-        confidence_values = np.array([experience["confidence"] for experience in self.experiences])
+        confidence_values = np.array(
+            [
+                experience["confidence"]
+                for experience in self.positive_experiences + self.negative_experiences
+            ]
+        )
         return confidence_values.mean()
