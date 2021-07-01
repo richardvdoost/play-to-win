@@ -12,18 +12,18 @@ from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
 GENERATION_SIZE = 16
-TRAIN_TIME = GENERATION_SIZE * 60
+TRAIN_TIME = GENERATION_SIZE * 40
 PLAY_COUNT = 1000
 MUTATION_STD = 0.04
-GENE_EXPRESSION_NUDGE_STD = 0.2
+GENE_EXPRESSION_NUDGE_STD = 0.1
 EMA_FACTOR = 0.1
 
 activation_functions = (ReLU, Sigmoid, Softplus)
 
 random_player = RandomPlayer()
 
-# Create base / origin model
 generation = [
+    # Create base / origin model
     {
         "discount_factor_logit": 1,
         "reward_factor": 1,
@@ -32,10 +32,24 @@ generation = [
         "batch_iterations": 1,
         "learning_rate": 0.001,
         "regularization": 1,
-        "neuron_layers": 0,
+        "neuron_layers": 0.2,
         "new_layer_neuron_count": 10,
         "brain": [],
         "fitness": 0,
+    },
+    # All time best genome with 40s of learning:
+    {
+        "discount_factor_logit": 0.46709,
+        "reward_factor": 2.49870,
+        "experience_batch_power": 5.70260,
+        "experience_buffer_power": 14.38792,
+        "batch_iterations": 1.43842,
+        "learning_rate": 0.00464,
+        "regularization": 0.61216,
+        "neuron_layers": 1.27344,
+        "new_layer_neuron_count": 29,
+        "brain": [[32.45, Softplus]],
+        "fitness": 0.00000,
     },
 ]
 
