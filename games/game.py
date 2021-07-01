@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 import numpy as np
 
 
@@ -24,7 +25,9 @@ class Game(ABC):
         self.state = None
         self.active_player_index = 0
         self.last_played_action = None
-        self.player_colors = [self.stone_colors[i % len(self.stone_colors)] for i in range(self.player_count)]
+        self.player_colors = [
+            self.stone_colors[i % len(self.stone_colors)] for i in range(self.player_count)
+        ]
 
         self.pygame = None
         self.screen = None
@@ -58,7 +61,9 @@ class Game(ABC):
         for dimension, line_count in enumerate(self.board_shape):
             for line_index in range(line_count):
                 line_width = (
-                    self.outer_line_width if line_index == 0 or line_index == line_count - 1 else self.line_width
+                    self.outer_line_width
+                    if line_index == 0 or line_index == line_count - 1
+                    else self.line_width
                 )
                 start = [
                     self.line_positions[coordinate][line_index if dimension == coordinate else 0]
@@ -71,7 +76,11 @@ class Game(ABC):
                     for coordinate in range(1, -1, -1)
                 ]
                 self.pygame.draw.line(
-                    self.screen, self.line_color, tuple(start), tuple(end), line_width,
+                    self.screen,
+                    self.line_color,
+                    tuple(start),
+                    tuple(end),
+                    line_width,
                 )
 
         # Draw star points
@@ -105,7 +114,9 @@ class Game(ABC):
     def draw_stone(self, i, j, color, alpha=255):
         x, y = self.row_col_to_x_y(i, j)
         radius = int(round(self.grid_size / 2))
-        self.pygame.gfxdraw.filled_circle(self.screen, x, y, radius, (color[0], color[1], color[2], alpha))
+        self.pygame.gfxdraw.filled_circle(
+            self.screen, x, y, radius, (color[0], color[1], color[2], alpha)
+        )
         self.pygame.gfxdraw.aacircle(self.screen, x, y, radius, (0, 0, 0, alpha))
 
     def draw_action_probabilities(self, action_probabilities):
@@ -121,7 +132,9 @@ class Game(ABC):
                     else (192, 64, 32, 192)
                 )
                 self.pygame.gfxdraw.box(
-                    self.screen, [int(x - size / 2), int(y - size / 2), size, size], color,
+                    self.screen,
+                    [int(x - size / 2), int(y - size / 2), size, size],
+                    color,
                 )
 
     def row_col_to_x_y(self, i, j):
@@ -157,7 +170,9 @@ class Game(ABC):
             while True:
 
                 player = self.players[self.active_player_index]
-                player.index = self.active_player_index  # Moved from init because players can play different games
+                player.index = (
+                    self.active_player_index
+                )  # Moved from init because players can play different games
 
                 action = player.take_action(self)
 
@@ -229,10 +244,11 @@ class Game(ABC):
 
     @property
     def screen_size(self):
-        return tuple([self.border_space * 2 + dimension * self.grid_size for dimension in self.board_shape[::-1]])
+        return tuple(
+            [self.border_space * 2 + dimension * self.grid_size for dimension in self.board_shape[::-1]]
+        )
 
     @property
     @abstractmethod
     def allowed_actions(self):
         pass
-

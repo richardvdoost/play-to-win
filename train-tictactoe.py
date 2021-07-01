@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 
 from brain import Brain
-from brain.activation_functions import ReLU, Sigmoid, Softmax
+from brain.activation_functions import LeakyReLU, Softmax
 from games import TicTacToe
 from players import PolicyGradientPlayer
 from plotter import Plotter
@@ -11,26 +11,27 @@ from plotter import Plotter
 np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 
 TRAIN_GAME_COUNT = 1000
-MAX_ROUNDS_WITHOUT_HIGHSCORE = 20
-MIN_BUFFER_USAGE_BEFORE_LEARNING = 0.05
+MAX_ROUNDS_WITHOUT_HIGHSCORE = 50
+MIN_BUFFER_USAGE_BEFORE_LEARNING = 0.1
 
 STARTING_EPSILON = 0.5
 FINAL_EPSILON = 0
 DISCOUNT_RATE = 0.5
 EXPERIENCE_BATCH_SIZE = 1024
-BATCH_ITERATIONS = 4
+BATCH_ITERATIONS = 8
 EXPERIENCE_BUFFER_SIZE = 2 ** 16
 
-LEARNING_RATE = 0.0001
-REGULARIZATION = 0.1
+LEARNING_RATE = 0.001
+REGULARIZATION = 0.05
 
 BRAIN_TOPOLOGY = (
     (18, None),
-    (2048, ReLU),
-    (2048, ReLU),
+    (64, LeakyReLU),
+    (96, LeakyReLU),
+    (48, LeakyReLU),
     (9, Softmax),
 )
-TRAINER_BRAIN_FILEPATH = "brain/saved/tictactoe-trainer-brain.pickle"
+BRAIN_FILEPATH = "brain/saved/tictactoe-brain.pickle"
 
 print("\nSTART TICTACTOE GAME TRAINING SESSION\n")
 
@@ -39,10 +40,12 @@ print("Created brain from scratch for the player robot")
 adaptive_trainer_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, regularization=REGULARIZATION)
 print("Created brain from scratch for the adaptive trainer robot")
 try:
-    static_trainer_brain = pickle.load(open(TRAINER_BRAIN_FILEPATH, "rb"))
+    static_trainer_brain = pickle.load(open(BRAIN_FILEPATH, "rb"))
     print("Loaded previously best brain for the static trainer robot")
 except Exception:
-    static_trainer_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, regularization=REGULARIZATION)
+    static_trainer_brain = Brain(
+        BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, regularization=REGULARIZATION
+    )
     print("Created brain from scratch for the static trainer robot")
 
 # The robots
@@ -94,7 +97,10 @@ plot_data = {
     },
     "experience": {
         "placement": 222,
-        "graphs": [{"color": "green", "label": "State Value"}, {"color": "blue", "label": "Action Confidence"}],
+        "graphs": [
+            {"color": "green", "label": "State Value"},
+            {"color": "blue", "label": "Action Confidence"},
+        ],
         "ylabel": "Mean Experience Value",
         "legend": True,
     },
@@ -106,7 +112,10 @@ plot_data = {
     },
     "weights": {
         "placement": 224,
-        "graphs": [{"color": "blue", "label": "Abs. Max"}, {"color": "green", "label": "Abs. Mean"},],
+        "graphs": [
+            {"color": "blue", "label": "Abs. Max"},
+            {"color": "green", "label": "Abs. Mean"},
+        ],
         "ylabel": "Absolute Weight Value",
         "xlabel": "Games Played",
         "legend": True,
@@ -114,7 +123,7 @@ plot_data = {
 }
 plotter = Plotter("Policy Network Performance", plot_data)
 
-# Before learning, just get random data in the experience buffer
+# Before learning, just get random data into the experience buffer
 print(
     f"\nPlaying warmup rounds of {TRAIN_GAME_COUNT} games to fill the "
     f"experience buffer to at least {MIN_BUFFER_USAGE_BEFORE_LEARNING * 100:4.1f}%"
@@ -149,11 +158,18 @@ while running:
             brain_cost += learner_brain.cost
         brain_cost /= BATCH_ITERATIONS
         brain_cost_ema = (
-            0.9 * brain_cost_ema + 0.1 * brain_cost if brain_cost_ema and not np.isnan(brain_cost_ema) else brain_cost
+            0.9 * brain_cost_ema + 0.1 * brain_cost
+            if brain_cost_ema and not np.isnan(brain_cost_ema)
+            else brain_cost
         )
-        brain_deltas = "\n".join([f"{learner_brain.output[i, :] - learner_brain.target[i, :]}" for i in range(3)])
+        brain_deltas = "\n".join(
+            [f"{learner_brain.output[i, :] - learner_brain.target[i, :]}" for i in range(3)]
+        )
 
-        epsilon = 1 / (1 + game_count / TRAIN_GAME_COUNT * 0.1) * (STARTING_EPSILON - FINAL_EPSILON) + FINAL_EPSILON
+        epsilon = (
+            1 / (1 + game_count / TRAIN_GAME_COUNT * 0.1) * (STARTING_EPSILON - FINAL_EPSILON)
+            + FINAL_EPSILON
+        )
         print(f"Playing against both trainer bots using epsilon: {epsilon:.4f}")
         learner_robot.epsilon = epsilon
         adaptive_trainer_robot.epsilon = epsilon
@@ -170,7 +186,9 @@ while running:
         score = score_tuple_rel[0] - score_tuple_rel[1]
         score_diff = (score - prev_score) / abs(prev_score) * 100 if prev_score else 0
         prev_score = score
-        static_train_score = (static_train_game.score[0] - static_train_game.score[1]) / TRAIN_GAME_COUNT * 50
+        static_train_score = (
+            (static_train_game.score[0] - static_train_game.score[1]) / TRAIN_GAME_COUNT * 50
+        )
 
         mean_experience_value = learner_robot.mean_experience_value
         mean_experience_value_diff = (
@@ -226,7 +244,7 @@ while running:
             # If the score is better than the previously saved brain, save it
             if score > 0 and static_train_score > best_static_train_score:
                 best_static_train_score = static_train_score
-                pickle.dump(learner_brain, open(TRAINER_BRAIN_FILEPATH, "wb"))
+                pickle.dump(learner_brain, open(BRAIN_FILEPATH, "wb"))
         else:
             rounds_without_highscore += 1
 

@@ -25,7 +25,10 @@ class SynapseCluster:
         self.neurons_left, self.neurons_right = surrounding_neuron_layers
         self.neurons_left.synapses_right = self.neurons_right.synapses_left = self
 
-        weight_matrix_shape = (len(self.neurons_right), len(self.neurons_left) + 1)  # +1 for bias neuron 👍
+        weight_matrix_shape = (
+            len(self.neurons_right),
+            len(self.neurons_left) + 1,
+        )  # +1 for bias neuron 👍
 
         self.weights = np.random.randn(*weight_matrix_shape) * np.sqrt(2 / len(self.neurons_left))
         self.weight_deltas = np.zeros(weight_matrix_shape)
@@ -37,7 +40,9 @@ class SynapseCluster:
         self.neurons_right.logit = self.neurons_left.output_with_bias.dot(self.weights.T)
 
     def calculate_gradients(self):
-        self.weight_gradients = self.neurons_right.delta.T.dot(self.neurons_left.output_with_bias) / self.batch_size
+        self.weight_gradients = (
+            self.neurons_right.delta.T.dot(self.neurons_left.output_with_bias) / self.batch_size
+        )
 
         if self.regularization_factor is not None:
             self.weight_gradients[:, 1:] += self.regularization_factor * self.weights[:, 1:]

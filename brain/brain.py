@@ -1,8 +1,8 @@
 import numpy as np
 
-from .activation_functions import Softmax
-from .neuron_layer import NeuronLayer
-from .synapse_cluster import SynapseCluster
+from brain.activation_functions import Softmax
+from brain.neuron_layer import NeuronLayer
+from brain.synapse_cluster import SynapseCluster
 
 
 class Brain:
@@ -45,7 +45,9 @@ class Brain:
                 )
 
                 self.synapse_clusters.append(SynapseCluster(self, surrounding_neuron_layers))
-                self.__non_bias_weights_count += len(surrounding_neuron_layers[0]) * len(surrounding_neuron_layers[1])
+                self.__non_bias_weights_count += len(surrounding_neuron_layers[0]) * len(
+                    surrounding_neuron_layers[1]
+                )
 
         self.learning_rate = learning_rate
         self.__regularization = regularization
@@ -61,7 +63,7 @@ class Brain:
     def train(self, training_samples, iteration_count=1):
         """
         Train the network on some training samples for a number of iterations
-        
+
         Args:
             data (tuple): Tuple of dictionaries with an 'x' and 'y' key that hold training data
             iteration_count (int): Numer of iterations to run on the training data
@@ -135,7 +137,9 @@ class Brain:
     @property
     def cost(self):
         if self.output_layer.activation_type == "Sigmoid":
-            cost_matrix = -1 * self.target * np.ma.log(self.output) - (1 - self.target) * np.ma.log(1 - self.output)
+            cost_matrix = -1 * self.target * np.ma.log(self.output) - (1 - self.target) * np.ma.log(
+                1 - self.output
+            )
         elif self.output_layer.activation_type == "Softmax":
             cost_matrix = -1 * self.target * np.ma.log(self.output)
         else:
@@ -168,8 +172,8 @@ class Brain:
         return self.output_layer.output
 
     @input.setter
-    def input(self, input):
-        self.input_layer.output = input
+    def input(self, inp):
+        self.input_layer.output = inp
 
     @property
     def batch_size(self):
@@ -181,7 +185,9 @@ class Brain:
 
         # When we set the batch size, update the regularization factor if we use regularization
         if self.__regularization is not None:
-            self.__regularization_factor = self.__regularization / (self.__batch_size * self.__non_bias_weights_count)
+            self.__regularization_factor = self.__regularization / (
+                self.__batch_size * self.__non_bias_weights_count
+            )
 
     @property
     def regularization_factor(self):

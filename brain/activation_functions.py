@@ -37,6 +37,16 @@ class ReLU(ActivationFunction):
         return np.heaviside(x, 0.5)
 
 
+class LeakyReLU(ActivationFunction):
+    @staticmethod
+    def activate(x):
+        return np.fmax(0.1 * x, x)
+
+    @staticmethod
+    def gradient(x):
+        return np.heaviside(x, 0.5) * 1.1 - 0.1
+
+
 class Sigmoid(ActivationFunction):
     @staticmethod
     def activate(x):
