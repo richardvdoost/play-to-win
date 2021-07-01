@@ -44,7 +44,7 @@ class LeakyReLU(ActivationFunction):
 
     @staticmethod
     def gradient(x):
-        return np.heaviside(x, 0.5) * 1.1 - 0.1
+        return np.heaviside(x, 0.5) * 0.9 + 0.1
 
 
 class Sigmoid(ActivationFunction):
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     test_values = [-5, -1, -0.5, 0, 0.5, 1, 5]
 
     x = np.array(test_values)
-    activation_functions = (Identity, ReLU, Sigmoid)
+    activation_functions = (Identity, ReLU, Sigmoid, LeakyReLU)
 
     for f in activation_functions:
         print("    ", f.__name__, "\b(", x, ") =", f.activate(x))

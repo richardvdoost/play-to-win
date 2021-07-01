@@ -23,15 +23,15 @@ random_player = RandomPlayer()
 generation = [
     # Create base / origin model
     {
-        "discount_rate_logit": 1,
-        "negative_memory_factor": 1,
-        "experience_batch_power": 3,
-        "experience_buffer_power": 6,
-        "batch_iterations": 1,
-        "learning_rate": 0.001,
-        "regularization": 1,
+        "discount_rate_logit": 1.4,
+        "negative_memory_factor": 2,
+        "experience_batch_power": 10,
+        "experience_buffer_power": 15,
+        "batch_iterations": 128,
+        "learning_rate": 0.003,
+        "regularization": 0.5,
         "neuron_layers": 0.4,
-        "new_layer_neuron_count": 10,
+        "new_layer_neuron_count": 32,
         "brain": [],
         "fitness": 0,
     },
