@@ -6,7 +6,7 @@ import numpy as np
 from brain import Brain
 from brain.activation_functions import Identity, ReLU, Sigmoid, Softmax, Softplus
 from games import TicTacToe
-from players import PolicyGradientPlayer, RandomPlayer, HumanPlayer
+from players import HumanPlayer, PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
 # Set some NumPy print options
@@ -66,7 +66,10 @@ plot_data = {
     },
     "experience": {
         "placement": 222,
-        "graphs": [{"color": "green", "label": "State Value"}, {"color": "blue", "label": "Action Confidence"}],
+        "graphs": [
+            {"color": "green", "label": "State Value"},
+            {"color": "blue", "label": "Action Confidence"},
+        ],
         "ylabel": f"Average Experience",
         "legend": True,
     },
@@ -78,7 +81,10 @@ plot_data = {
     },
     "weights": {
         "placement": 224,
-        "graphs": [{"color": "blue", "label": "Abs. Max"}, {"color": "green", "label": "Abs. Mean"},],
+        "graphs": [
+            {"color": "blue", "label": "Abs. Max"},
+            {"color": "green", "label": "Abs. Mean"},
+        ],
         "ylabel": f"Weights Range",
         "xlabel": f"Games Played",
         "legend": True,
@@ -110,7 +116,9 @@ while running:
 
         brain_cost = robot_brain.cost
         brain_cost_ema = (
-            0.9 * brain_cost_ema + 0.1 * brain_cost if brain_cost_ema and not np.isnan(brain_cost_ema) else brain_cost
+            0.9 * brain_cost_ema + 0.1 * brain_cost
+            if brain_cost_ema and not np.isnan(brain_cost_ema)
+            else brain_cost
         )
 
         mean_experience_value = learning_robot.mean_experience_value
