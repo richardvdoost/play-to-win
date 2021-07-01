@@ -19,15 +19,15 @@ PLAY_COUNT = 1000
 EXPERIENCE_BATCH_SIZE = 1024
 BATCH_ITERATIONS = 128
 EXPERIENCE_BUFFER_SIZE = 2 ** 15
-NEGATIVE_MEMORY_FACTOR = 2
+NEGATIVE_MEMORY_FACTOR = 1.5
 
 DISCOUNT_RATE = 0.5
-LEARNING_RATE = 0.003
+LEARNING_RATE = 0.002
 REGULARIZATION = 0.5
 
 BRAIN_TOPOLOGY = (
     (18, None),
-    (64, LeakyReLU),
+    (32, LeakyReLU),
     (9, Softmax),
 )
 
@@ -88,8 +88,8 @@ plot_data = {
             {"color": "blue", "label": "Abs. Max"},
             {"color": "green", "label": "Abs. Mean"},
         ],
-        "ylabel": f"Weights Range",
-        "xlabel": f"Games Played",
+        "ylabel": "Weights Range",
+        "xlabel": "Games Played",
         "legend": True,
     },
 }
@@ -122,7 +122,7 @@ while running:
         learning_robot.act_greedy = False
         random_game.reset_score()
         random_game.play(PLAY_COUNT)
-        learning_robot.learn(BATCH_ITERATIONS)
+        learning_robot.learn()
 
         brain_cost = robot_brain.error
         brain_cost_ema = (

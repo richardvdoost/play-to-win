@@ -10,7 +10,7 @@ from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
 GENERATION_SIZE = 8
-TRAIN_TIME = GENERATION_SIZE * 60
+TRAIN_TIME = GENERATION_SIZE * 75
 PLAY_COUNT = 1000
 MUTATION_STD = 0.04
 GENE_EXPRESSION_NUDGE_STD = 0.1
@@ -23,14 +23,14 @@ random_player = RandomPlayer()
 generation = [
     # Create base / origin model
     {
-        "discount_rate_logit": 1.4,
-        "negative_memory_factor": 2,
+        "discount_rate_logit": 1.5,
+        "negative_memory_factor": 1.5,
         "experience_batch_power": 10,
-        "experience_buffer_power": 15,
-        "batch_iterations": 128,
-        "learning_rate": 0.003,
+        "experience_buffer_power": 14,
+        "batch_iterations": 32,
+        "learning_rate": 0.001,
         "regularization": 0.5,
-        "neuron_layers": 0.4,
+        "neuron_layers": 1.0,
         "new_layer_neuron_count": 32,
         "brain": [],
         "fitness": 0,
@@ -63,7 +63,7 @@ plot_data = {
         ],
         "ylabel": f"Fitness - Losing % of {PLAY_COUNT} games",
         "legend": True,
-        "xlabel": f"Generation",
+        "xlabel": "Generation",
     },
     "brain_size": {
         "placement": 212,
@@ -73,8 +73,8 @@ plot_data = {
             {"color": "blue_transp"},
             {"color": "blue"},
         ],
-        "ylabel": f"Brain Size (# of synapses)",
-        "xlabel": f"Generation",
+        "ylabel": "Brain Size (# of synapses)",
+        "xlabel": "Generation",
     },
 }
 plotter = Plotter(
@@ -84,20 +84,20 @@ plotter = Plotter(
 
 
 def train(game):
-    global TRAIN_TIME
-    games_per_step = 50
+    games_per_step = 100
     games_played = 0
+    game.players[0].act_greedy = False
     start_time = time.time()
     while time.time() < start_time + TRAIN_TIME:
         game.play(games_per_step)
         games_played += games_per_step
+        game.players[0].learn()
 
     print(f" - Trained on {games_played} games")
     return game
 
 
 def play(game):
-    global PLAY_COUNT
     game.reset_score()
     game.players[0].learn_while_playing = False
     game.players[0].act_greedy = True

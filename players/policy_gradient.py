@@ -102,11 +102,11 @@ class PolicyGradientPlayer(Player):
         if self.learn_while_playing:
             self.learn()
 
-    def learn(self, batch_iterations=None):
+    def learn(self):
         if len(self.positive_experiences) + len(self.negative_experiences) == 0:
             return
 
-        for batch in self.get_experience_batches(count=batch_iterations):
+        for batch in self.get_experience_batches():
             samples = []
             for experience in batch:
                 samples.append(
@@ -165,7 +165,7 @@ class PolicyGradientPlayer(Player):
 
         self.episode = []
 
-    def get_experience_batches(self, count=None):
+    def get_experience_batches(self):
         """
         Return a number of random sample batches of past experiences
         (for batch gradient descent of the brain)
@@ -178,7 +178,7 @@ class PolicyGradientPlayer(Player):
         half_batch = self.experience_batch_size // 2
 
         batches = []
-        for _ in range(self.batch_iterations if count is None else count):
+        for _ in range(self.batch_iterations):
             positive_experience_indexes = np.random.choice(
                 positive_experience_count,
                 half_batch,
