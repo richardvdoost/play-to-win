@@ -14,20 +14,21 @@ np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 
 
 # Hyper parameters
+TRAIN_COUNT = 500
 PLAY_COUNT = 1000
 
-EXPERIENCE_BATCH_SIZE = 1024
+EXPERIENCE_BATCH_SIZE = 128
 BATCH_ITERATIONS = 128
-EXPERIENCE_BUFFER_SIZE = 2 ** 15
-NEGATIVE_MEMORY_FACTOR = 1.5
+EXPERIENCE_BUFFER_SIZE = 2 ** 16
+NEGATIVE_MEMORY_FACTOR = 1.20921
 
-DISCOUNT_RATE = 0.5
-LEARNING_RATE = 0.002
-REGULARIZATION = 0.5
+DISCOUNT_RATE = 0.59
+LEARNING_RATE = 0.0005
+REGULARIZATION = 0.46523
 
 BRAIN_TOPOLOGY = (
     (18, None),
-    (32, LeakyReLU),
+    (45, LeakyReLU),
     (9, Softmax),
 )
 
@@ -106,12 +107,15 @@ running = True
 while running:
     try:
 
-        # Perform
+        # Perform, don't remember the experiences
+        positive_experiences = learning_robot.positive_experiences
+        negative_experiences = learning_robot.negative_experiences
         learning_robot.act_greedy = True
         random_game.reset_score()
         random_game.play(PLAY_COUNT)
+        learning_robot.positive_experiences = positive_experiences
+        learning_robot.negative_experiences = negative_experiences
 
-        game_count += PLAY_COUNT
         score_tuple = random_game.score
         score_tuple_rel = score_tuple[0] / PLAY_COUNT * 100, score_tuple[1] / PLAY_COUNT * 100
         score = score_tuple_rel[0] - score_tuple_rel[1]
@@ -121,8 +125,10 @@ while running:
         # Train / Learn
         learning_robot.act_greedy = False
         random_game.reset_score()
-        random_game.play(PLAY_COUNT)
+        random_game.play(TRAIN_COUNT)
         learning_robot.learn()
+
+        game_count += TRAIN_COUNT
 
         brain_cost = robot_brain.error
         brain_cost_ema = (

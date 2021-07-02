@@ -22,19 +22,19 @@ random_player = RandomPlayer()
 
 generation = [
     # Create base / origin model
-    #{
-        #"discount_rate_logit": 1.5,
-        #"negative_memory_factor": 1.5,
-        #"experience_batch_power": 10,
-        #"experience_buffer_power": 14,
-        #"batch_iterations": 32,
-        #"learning_rate": 0.001,
-        #"regularization": 0.5,
-        #"neuron_layers": 0.5,
-        #"new_layer_neuron_count": 32,
-        #"brain": [],
-        #"fitness": 0,
-    #},
+    # {
+    # "discount_rate_logit": 1.5,
+    # "negative_memory_factor": 1.5,
+    # "experience_batch_power": 10,
+    # "experience_buffer_power": 14,
+    # "batch_iterations": 32,
+    # "learning_rate": 0.001,
+    # "regularization": 0.5,
+    # "neuron_layers": 0.5,
+    # "new_layer_neuron_count": 32,
+    # "brain": [],
+    # "fitness": 0,
+    # },
     # All time best genome (perfect score) after 75 seconds of learning
     {
         "discount_rate_logit": 1.35611,
