@@ -10,7 +10,7 @@ from players import PolicyGradientPlayer, RandomPlayer
 from plotter import Plotter
 
 GENERATION_SIZE = 16
-TRAIN_TIME = GENERATION_SIZE * 60
+TRAIN_TIME = GENERATION_SIZE * 40
 PLAY_COUNT = 1000
 MUTATION_STD = 0.04
 GENE_EXPRESSION_NUDGE_STD = 0.1
@@ -35,20 +35,20 @@ generation = [
     # "brain": [],
     # "fitness": 0,
     # },
-    # All time best genome (perfect score) after 75 seconds of learning
+    # All time best genome (perfect score) after 60 seconds of learning
     {
-        "discount_rate_logit": 1.35611,
-        "negative_memory_factor": 1.20921,
-        "experience_batch_power": 7.04262,
-        "experience_buffer_power": 16.03126,
-        "batch_iterations": 24.69248,
-        "learning_rate": 0.00124,
-        "regularization": 0.46523,
-        "neuron_layers": 0.70265,
-        "new_layer_neuron_count": 37.74510,
-        "brain": [[45, LeakyReLU]],
-        "fitness": 0.00000,
-    },
+        "discount_rate_logit": 1.48275,
+        "negative_memory_factor": 1.08320,
+        "experience_batch_power": 6.92689,
+        "experience_buffer_power": 15.70696,
+        "batch_iterations": 26.44648,
+        "learning_rate": 0.00123,
+        "regularization": 0.47037,
+        "neuron_layers": 0.69037,
+        "new_layer_neuron_count": 39.99816,
+        "brain": [[44.83371786746678, LeakyReLU]],
+        "fitness": 0.0,
+    }
     # All time best genome with 40s of learning:
     # {
     #     "discount_rate_logit": 0.46709,
