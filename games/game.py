@@ -31,6 +31,7 @@ class Game(ABC):
 
         self.pygame = None
         self.screen = None
+        self.clock = None
 
         self.line_positions = [
             [

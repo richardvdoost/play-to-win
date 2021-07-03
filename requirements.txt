@@ -2,3 +2,6 @@ numpy
 matplotlib
 pygame
 pytest
+box2d
+box2d-py
+gym
