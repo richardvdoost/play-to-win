@@ -4,8 +4,8 @@ import random
 import gym
 import numpy as np
 
-EPISODE_COUNT = 1
-MAX_TIMESTEPS = 1000
+EPISODE_COUNT = 2
+MAX_TIMESTEPS = 100
 RENDER = True
 
 
@@ -128,13 +128,9 @@ class BoardGameEnvironment(gym.core.Env):
     def state(self):
         state = np.zeros(self.observation_space.shape, bool)
 
-        for p in range(self.game.player_count):
-            if self.go_first:
-                player_id = p + 1
-            else:
-                player_id = (p + self.game.player_count - 1) % self.game.player_count + 1
-
-            state[p, :, :] = self.game.state == player_id
+        for i in range(self.game.player_count):
+            player_index = (self.game.current_player + i) % self.game.player_count
+            state[i, :, :] = self.game.state == player_index
 
         return state
 
@@ -170,9 +166,10 @@ class Agent:
 
 
 def main():
-    env = gym.make("CarRacing-v0")
     game = BoardGame()
-    # env = BoardGameEnvironment(game, Agent)
+    # env = gym.make("CartPole-v0")
+    # env = gym.make("CarRacing-v0")
+    env = BoardGameEnvironment(game, Agent)
     agent = Agent(env.observation_space, env.action_space)
 
     # This is our first observation before doing anything
