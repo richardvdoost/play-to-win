@@ -5,3 +5,4 @@ pytest
 box2d
 box2d-py
 gym
+gym-super-mario-bros

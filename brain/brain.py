@@ -11,21 +11,23 @@ class Brain:
 
     The Brain consists of L NeuronLayers and L-1 SynapseClusters, specified by the topology.
 
-    NeuronLayers are connected through SynapseClusters which hold the individual connections/weights.
+    NeuronLayers are fully connected through SynapseClusters which hold the individual
+    connections/weights.
 
-    All connections/weights between two NeuronLayers are grouped together in a SynapseCluster so that they can be
-    represented by a NumPy matrix.
+    All connections/weights between two NeuronLayers are grouped together as a SynapseCluster so that
+    they can be represented by a NumPy matrix.
     """
 
     def __init__(self, topology, learning_rate=0.1, regularization=None):
         """
         Args:
-            topology ((int, TransferFunction | None), ...): Describes each layer of the network with a lenght for the
-                layer (amount of neurons) and a transfer function object for the neurons in the layer. The input layer
-                can't have a transfer function, so providing None is fine. The output layer should have a ReLU transfer
-                function for weight gradient calculation to work properly with the current cost function.
-            regularization (float | None): Weights regularization to keep weight values from getting too extreme and
-                unstable.
+            topology ((int, TransferFunction | None), ...): Describes each layer of the network with a
+            lenght for the layer (amount of neurons) and a transfer function object for the neurons in the
+            layer. The input layer can't have a transfer function, so providing None is fine. The output
+            layer should have a ReLU transfer function for weight gradient calculation to work properly
+            with the current cost function.
+            regularization (float | None): Weights regularization to keep weight values from getting too
+            extreme and unstable.
         """
 
         # Create the neuron layers and synapse clusters (connections)
@@ -119,7 +121,7 @@ class Brain:
             layer.forward_prop()
 
     def back_prop(self):
-        self.output_layer.delta = self.output - self.target  # Only works for sigmoid layers
+        self.output_layer.delta = self.output - self.target  # Only works for sigmoid output layers
 
         for layer in reversed(self.neuron_layers[:-1]):
             layer.back_prop()
@@ -135,6 +137,18 @@ class Brain:
         return output
 
     @property
+    def cost(self):
+        cost = self.error
+
+        if self.regularization_factor is not None:
+            total_weights_squared = 0
+            for synapse_cluster in self.synapse_clusters:
+                total_weights_squared += np.sum(synapse_cluster.weights[:, 1:] ** 2)
+            cost += self.regularization_factor * 0.5 * total_weights_squared
+
+        return cost
+
+    @property
     def error(self):
         if self.output_layer.activation_type == "Sigmoid":
             cost_matrix = -1 * self.target * np.ma.log(self.output) - (1 - self.target) * np.ma.log(
@@ -146,18 +160,6 @@ class Brain:
             raise Exception(f"Wrong output layer activation type: {self.output_layer.activation_type}")
 
         return np.sum(cost_matrix) / self.batch_size
-
-    @property
-    def cost(self):
-        cost = self.error
-
-        if self.regularization_factor is not None:
-            total_weights_squared = 0
-            for synapse_cluster in self.synapse_clusters:
-                total_weights_squared += np.sum(synapse_cluster.weights[:, 1:] ** 2)
-            cost += self.regularization_factor * 0.5 * total_weights_squared
-
-        return cost
 
     @property
     def input_layer(self):

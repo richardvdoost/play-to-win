@@ -1,89 +1,69 @@
 import numpy as np
 
-from .game import Game
+from games.board_game import BoardGame
 
 
-class TicTacToe(Game):
+class TicTacToe(BoardGame):
     board_shape = (3, 3)
+    actions_shape = (3, 3)
+    player_count = 2
+
     star_points = ((1, 1),)
     grid_size = 72
     border_space = 16
-    mouse_was_pressed = False
 
-    def apply_action(self, action):
-        assert np.count_nonzero(action) == 1  # Allow only one action
-        assert (
-            self.state[action] == -1
-        ), f"Only actions on empty cells are allowed. State:\n{self.state}\nAction:\n{action}\n"
-        self.state[action] = self.active_player_index
-        self.last_played_action = action
+    def apply_move(self, action):
+        row = action // 3
+        col = action % 3
 
-    def get_pygame_action(self):
+        print(f"BoardGame: apply_move({action}) [{row}, {col}] by player {self.current_player}")
 
-        x, y = self.pygame.mouse.get_pos()
-        i, j = self.x_y_to_row_col(x, y)
+        if not action in self.legal_actions:
+            print(" - Illegal action!")
+            self.rewards[self.current_player] = -1
+            return True
 
-        if i is None or j is None:
-            self.render()
-            return None
+        self.state[row, col] = self.current_player
 
-        if self.allowed_actions[i, j]:
-            self.render((i, j))
+        done = self.is_finished()
 
-            mouse_is_pressed, *_ = self.pygame.mouse.get_pressed()
-            if not self.mouse_was_pressed and mouse_is_pressed:
-                self.mouse_was_pressed = True
+        if not done:
+            self.current_player = (self.current_player + 1) % self.player_count
 
-            if self.mouse_was_pressed and not mouse_is_pressed:
-                self.mouse_was_pressed = False
-                action = np.zeros(self.allowed_actions.shape, dtype=bool)
-                action[i, j] = True
-                return action
+        return done
 
-        else:
-            self.render()
+    def is_finished(self):
+        if self.is_current_player_winner():
+            for player_id in range(self.player_count):
+                self.rewards[player_id] = 1 if player_id == self.current_player else -1
+            print("WINNER")
+            return True
 
-        return None
+        if np.all(self.state != self.EMPTY):
+            print("DRAW")
+            return True
 
-    def has_winner(self):
+        return False
 
-        # Check rows
-        for row in range(3):
-
-            # This row has an empty spot? No winner, continue to next row
-            if np.any(self.state[row, :] == -1):
-                continue
-
-            # This row has 3 similar spots? Winner
-            player_index = self.state[row, 0]
-            if np.all(self.state[row, 1:] == player_index):
-                self.set_winner(player_index)
+    def is_current_player_winner(self):
+        for i in range(3):
+            if np.all(self.state[i, :] == self.current_player):
                 return True
 
-        # Check colums
-        for col in range(3):
-
-            # This column has an empty spot? No winner, continue to next column
-            if np.any(self.state[:, col] == -1):
-                continue
-
-            # This column has 3 similar spots? Winner
-            player_index = self.state[0, col]
-            if np.all(self.state[1:, col] == player_index):
-                self.set_winner(player_index)
+            if np.all(self.state[:, i] == self.current_player):
                 return True
 
-        # Check diagonals
-        player_index = self.state[1, 1]
-        if player_index == -1:
-            return False
+        forward = (0, 1, 2)
+        if np.all(self.state[forward, forward] == self.current_player):
+            return True
 
-        if np.all(self.state[(0, 2), (0, 2)] == player_index) or np.all(self.state[(0, 2), (2, 0)] == player_index):
-            self.set_winner(player_index)
+        backward = (2, 1, 0)
+        if np.all(self.state[forward, backward] == self.current_player):
             return True
 
         return False
 
     @property
-    def allowed_actions(self):
-        return self.state == -1
+    def legal_actions(self):
+        empty_cells = self.state == self.EMPTY
+        return empty_cells.flatten().nonzero()[0]
