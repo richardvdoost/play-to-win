@@ -78,7 +78,7 @@ class Brain:
             self.back_prop()
             self.optimize_weights()
 
-    def nudge(self, samples):
+    def nudge(self, inputs, nudges):
         """
         Be able to just nudge the brain into a better direction
         Nudge values can be positive or negative.
@@ -86,18 +86,14 @@ class Brain:
         Scores will be nudged, and then converted back into a new probability distribution
         """
 
-        assert len(samples[0]["input"]) == len(self.input_layer)
-        assert len(samples[0]["nudge"]) == len(self.output_layer)
-
-        self.batch_size = len(samples)
-        self.set_input(np.array([sample["input"] for sample in samples]))
+        self.batch_size = len(inputs)
+        self.set_input(inputs)
         self.forward_prop()
 
         # Convert output into scores (squeeze values to 0.0001-0.9999 for more stability)
         scores = np.log(0.0001 + self.output * 0.9998)
-        scores += np.array([sample["nudge"] for sample in samples])
 
-        self.target = Softmax.activate(scores)
+        self.target = Softmax.activate(scores + nudges)
         self.back_prop()
         self.optimize_weights()
 

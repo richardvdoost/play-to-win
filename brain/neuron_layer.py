@@ -74,7 +74,6 @@ class NeuronLayer:
 
     @output.setter
     def output(self, output):
-        # print(f"output shape: {output.shape}")
         assert output.shape[1] == self.__length
         self.__output = output
 

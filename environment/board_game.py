@@ -5,18 +5,19 @@ import numpy as np
 
 
 class BoardGameEnvironment(gym.Env):
-    def __init__(self, game, opponent_cls, go_first=True):
+    def __init__(self, game, opponents, go_first=True):
         self.game = game
 
         observation_shape = tuple([game.player_count] + list(game.board_shape))
         self.observation_space = gym.spaces.Box(0, 1, observation_shape, bool)
         self.action_space = gym.spaces.Discrete(math.prod(game.actions_shape))
 
-        # Create opponents (all the same type for now)
-        opponent_count = game.player_count - 1
-        self.opponents = []
-        for _ in range(opponent_count):
-            self.opponents.append(opponent_cls(self.observation_space, self.action_space))
+        self.opponents = opponents
+        for opponent in self.opponents:
+            opponent.observation_space = self.observation_space
+            opponent.action_space = self.action_space
+
+        self.game.player_count = len(self.opponents) + 1
 
         self.go_first = go_first
 
@@ -24,7 +25,7 @@ class BoardGameEnvironment(gym.Env):
         self.game.reset()
 
         if not self.go_first:
-            print("BoardGameEnvironment: reset - Initialize board with opponent moves")
+            # print("BoardGameEnvironment: reset - Initialize board with opponent moves")
             self.let_opponents_act()
 
         self.go_first = not self.go_first
@@ -33,12 +34,12 @@ class BoardGameEnvironment(gym.Env):
 
     def step(self, action):
         player_id = self.game.current_player
-        print("BoardGameEnvironment: Main player:", player_id)
+        # print("BoardGameEnvironment: Main player:", player_id)
 
         info = {}
 
         if action is None:
-            print(f"Player {player_id} resigns!")
+            # print(f"Player {player_id} resigns!")
             done = True
             return self.state, self.game.get_reward(player_id), done, info
 

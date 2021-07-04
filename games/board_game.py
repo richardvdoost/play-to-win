@@ -7,7 +7,9 @@ from ui.viewer import BoardGameViewer
 class BoardGame(ABC):
     EMPTY = -1
 
-    def __init__(self):
+    def __init__(self, player_count=2):
+        self.player_count = player_count
+
         self.current_player = None
         self.rewards = [0] * self.player_count
 
@@ -29,10 +31,10 @@ class BoardGame(ABC):
         return reward
 
     def apply_move(self, action):
-        print(f"BoardGame: apply_move({action}) by player {self.current_player}")
+        # print(f"BoardGame: apply_move({action}) by player {self.current_player}")
 
         if not action in self.legal_actions:
-            print(" - Illegal action!")
+            # print(" - Illegal action!")
             self.rewards[self.current_player] = -1
             return True
 
@@ -50,6 +52,7 @@ class BoardGame(ABC):
 
     def is_finished(self):
         if self.is_winner():
+            # print("BoardGame: Found a winner! Player", self.current_player)
             self.reward_and_punish()
             return True
 
@@ -59,7 +62,9 @@ class BoardGame(ABC):
         self.rewards = [1 if id == self.current_player else -1 for id in range(self.player_count)]
 
     def render_console(self):
-        print(self.state + 1)
+        print()
+        for row in self.state:
+            print("", " ".join(["." if cell == self.EMPTY else str(cell) for cell in row]))
 
     def render_viewer(self, action_probabilities=None):
         if self.viewer is None:

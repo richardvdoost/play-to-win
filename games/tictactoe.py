@@ -6,7 +6,6 @@ from games.board_game import BoardGame
 class TicTacToe(BoardGame):
     board_shape = (3, 3)
     actions_shape = (3, 3)
-    player_count = 2
 
     star_points = ((1, 1),)
     grid_size = 72
