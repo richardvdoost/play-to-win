@@ -10,7 +10,7 @@ class RandomAgent(Agent):
         print(f" - Observation:\n{observation}")
         print(" - Reward from previous action:", reward)
 
-        time.sleep(0.1)
+        time.sleep(1)
 
         if done:
             print(" - Not taking action because it's game over!")

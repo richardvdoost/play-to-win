@@ -56,10 +56,29 @@ class BoardGameViewer(Viewer):
         if self.exited:
             return
 
-        # Reset screen
         self.screen.fill(self.background_color)
 
-        # Draw lines
+        self.draw_board_lines()
+        self.draw_star_points()
+        self.draw_all_stones()
+
+        if ghost_stone:
+            self.draw_stone(
+                *ghost_stone,
+                self.player_colors[self.game.current_player],
+                self.semi_transparent_opacity,
+            )
+
+        if action_probabilities is not None:
+            self.draw_action_probabilities(action_probabilities)
+
+        self.pygame.display.flip()
+        for event in self.pygame.event.get():
+            if event.type == self.pygame.QUIT:
+                self.pygame.quit()
+                break
+
+    def draw_board_lines(self):
         for dimension, line_count in enumerate(self.game.board_shape):
             for line_index in range(line_count):
                 line_width = (
@@ -85,14 +104,14 @@ class BoardGameViewer(Viewer):
                     line_width,
                 )
 
-        # Draw star points
+    def draw_star_points(self):
         for star_point in self.game.star_points:
             x, y = self.row_col_to_x_y(*star_point)
 
             self.pygame.gfxdraw.aacircle(self.screen, x, y, self.star_point_radius, self.line_color)
             self.pygame.gfxdraw.filled_circle(self.screen, x, y, self.star_point_radius, self.line_color)
 
-        # Draw stones based on state
+    def draw_all_stones(self):
         for i in range(self.game.board_shape[0]):
             for j in range(self.game.board_shape[1]):
                 player_index = self.game.state[i, j]
@@ -101,24 +120,6 @@ class BoardGameViewer(Viewer):
                     continue
 
                 self.draw_stone(i, j, self.player_colors[player_index % len(self.player_colors)])
-
-        if ghost_stone:
-            self.draw_stone(
-                *ghost_stone,
-                self.player_colors[self.game.current_player],
-                self.semi_transparent_opacity,
-            )
-
-        # Draw action probabilities if needed
-        if action_probabilities is not None:
-            self.draw_action_probabilities(action_probabilities)
-
-        # Update display
-        self.pygame.display.flip()
-        for event in self.pygame.event.get():
-            if event.type == self.pygame.QUIT:
-                self.pygame.quit()
-                break
 
     def draw_stone(self, i, j, color, alpha=255):
         x, y = self.row_col_to_x_y(i, j)
@@ -173,11 +174,9 @@ class BoardGameViewer(Viewer):
 
             mouse_is_pressed, *_ = self.pygame.mouse.get_pressed()
             if not self.mouse_was_pressed and mouse_is_pressed:
-                print("Pressed Mouse!")
                 self.mouse_was_pressed = True
 
             if self.mouse_was_pressed and not mouse_is_pressed:
-                print("Released Mouse!")
                 self.mouse_was_pressed = False
                 return action
 
@@ -189,8 +188,5 @@ class BoardGameViewer(Viewer):
     @property
     def screen_size(self):
         return tuple(
-            [
-                self.game.border_space * 2 + dimension * self.game.grid_size
-                for dimension in self.game.board_shape[::-1]
-            ]
+            self.game.border_space * 2 + dim * self.game.grid_size for dim in self.game.board_shape[::-1]
         )

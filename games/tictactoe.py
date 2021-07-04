@@ -12,40 +12,15 @@ class TicTacToe(BoardGame):
     grid_size = 72
     border_space = 16
 
-    def apply_move(self, action):
+    def change_state(self, action):
         row = action // 3
         col = action % 3
-
-        print(f"BoardGame: apply_move({action}) [{row}, {col}] by player {self.current_player}")
-
-        if not action in self.legal_actions:
-            print(" - Illegal action!")
-            self.rewards[self.current_player] = -1
-            return True
-
         self.state[row, col] = self.current_player
 
-        done = self.is_finished()
+    def is_draw(self):
+        return np.all(self.state != self.EMPTY)
 
-        if not done:
-            self.current_player = (self.current_player + 1) % self.player_count
-
-        return done
-
-    def is_finished(self):
-        if self.is_current_player_winner():
-            for player_id in range(self.player_count):
-                self.rewards[player_id] = 1 if player_id == self.current_player else -1
-            print("WINNER")
-            return True
-
-        if np.all(self.state != self.EMPTY):
-            print("DRAW")
-            return True
-
-        return False
-
-    def is_current_player_winner(self):
+    def is_winner(self):
         for i in range(3):
             if np.all(self.state[i, :] == self.current_player):
                 return True

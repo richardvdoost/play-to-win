@@ -3,9 +3,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 from ui.viewer import BoardGameViewer
 
-RENDER_MODE_CONSOLE = "CONSOLE"
-RENDER_MODE_VIEWER = "VIEWER"
-
 
 class BoardGame(ABC):
     EMPTY = -1
@@ -31,8 +28,38 @@ class BoardGame(ABC):
 
         return reward
 
+    def apply_move(self, action):
+        print(f"BoardGame: apply_move({action}) by player {self.current_player}")
+
+        if not action in self.legal_actions:
+            print(" - Illegal action!")
+            self.rewards[self.current_player] = -1
+            return True
+
+        self.change_state(action)
+
+        done = self.is_finished()
+
+        if not done:
+            self.current_player = (self.current_player + 1) % self.player_count
+
+        if self.viewer is not None:
+            self.viewer.render()
+
+        return done
+
+    def is_finished(self):
+        if self.is_winner():
+            self.reward_and_punish()
+            return True
+
+        return self.is_draw()
+
+    def reward_and_punish(self):
+        self.rewards = [1 if id == self.current_player else -1 for id in range(self.player_count)]
+
     def render_console(self):
-        print(self.state)
+        print(self.state + 1)
 
     def render_viewer(self, action_probabilities=None):
         if self.viewer is None:
@@ -40,11 +67,15 @@ class BoardGame(ABC):
         self.viewer.render(action_probabilities=action_probabilities)
 
     @abstractmethod
-    def apply_move(self, action):
+    def change_state(self, action):
         raise NotImplementedError
 
     @abstractmethod
-    def is_finished(self):
+    def is_draw(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_winner(self):
         raise NotImplementedError
 
     @property

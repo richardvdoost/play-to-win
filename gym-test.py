@@ -5,8 +5,8 @@ from agents.random import RandomAgent
 from environment.board_game import BoardGameEnvironment
 from games.tictactoe import TicTacToe
 
-EPISODE_COUNT = 20
-MAX_TIMESTEPS = 1000
+EPISODE_COUNT = 1
+MAX_TIMESTEPS = 100
 RENDER = True
 
 
