@@ -1,6 +1,7 @@
 # Bunch of different activation functions with gradients that evaluate element-wise on numpy arrays
 
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 
 import numpy as np
 
@@ -84,7 +85,6 @@ class Softmax(ActivationFunction):
 
 # Testing
 if __name__ == "__main__":
-
     test_values = [-5, -1, -0.5, 0, 0.5, 1, 5]
 
     x = np.array(test_values)

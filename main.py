@@ -1,35 +1,42 @@
 import pickle
 import time
+from pathlib import Path
 
 import numpy as np
 
 from brain import Brain
-from brain.activation_functions import Identity, ReLU, Sigmoid, Softmax, Softplus
+from brain.activation_functions import Identity
+from brain.activation_functions import LeakyReLU
+from brain.activation_functions import ReLU
+from brain.activation_functions import Sigmoid
+from brain.activation_functions import Softmax
+from brain.activation_functions import Softplus
 from games import TicTacToe
-from players import HumanPlayer, PolicyGradientPlayer, RandomPlayer
+from players import HumanPlayer
+from players import PolicyGradientPlayer
+from players import RandomPlayer
 from plotter import Plotter
 
-# Set some NumPy print options
 np.set_printoptions(precision=3, suppress=True, floatmode="fixed")
 
 # Hyper parameters
 PLAY_COUNT = 1000
-
 EXPERIENCE_BATCH_SIZE = 1024
 BATCH_ITERATIONS = 256
-EXPERIENCE_BUFFER_SIZE = 2 ** 14
-
+EXPERIENCE_BUFFER_SIZE = 2**13
 DISCOUNT_RATE = 0.5
 LEARNING_RATE = 0.0005
 REGULARIZATION = 0.3
-
 BRAIN_TOPOLOGY = (
     (18, None),
-    (64, ReLU),
+    (32, LeakyReLU),
+    (32, LeakyReLU),
     (9, Softmax),
 )
 
-robot_brain = Brain(BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, regularization=REGULARIZATION)
+robot_brain = Brain(
+    BRAIN_TOPOLOGY, learning_rate=LEARNING_RATE, regularization=REGULARIZATION
+)
 learning_robot = PolicyGradientPlayer(
     robot_brain,
     discount_rate=DISCOUNT_RATE,
@@ -39,6 +46,10 @@ learning_robot = PolicyGradientPlayer(
 )
 
 random_game = TicTacToe((learning_robot, RandomPlayer()))
+
+# Init folders
+for path in ("brain/saved", "plots"):
+    Path(path).mkdir(exist_ok=True, parents=True)
 
 # Initialize plot data
 game_counts = []
@@ -102,14 +113,16 @@ start_time = time.time()
 running = True
 while running:
     try:
-
         random_game.reset_score()
         random_game.play(PLAY_COUNT)
         learning_robot.learn(BATCH_ITERATIONS)
 
         game_count += PLAY_COUNT
         score_tuple = random_game.score
-        score_tuple_rel = score_tuple[0] / PLAY_COUNT * 100, score_tuple[1] / PLAY_COUNT * 100
+        score_tuple_rel = (
+            score_tuple[0] / PLAY_COUNT * 100,
+            score_tuple[1] / PLAY_COUNT * 100,
+        )
         score = score_tuple_rel[0] - score_tuple_rel[1]
         score_diff = (score - prev_score) / abs(prev_score) * 100 if prev_score else 0
         prev_score = score
@@ -123,7 +136,9 @@ while running:
 
         mean_experience_value = learning_robot.mean_experience_value
         mean_experience_value_diff = (
-            (mean_experience_value - prev_mean_experience_value) / abs(prev_mean_experience_value) * 100
+            (mean_experience_value - prev_mean_experience_value)
+            / abs(prev_mean_experience_value)
+            * 100
             if prev_mean_experience_value
             else 0.0
         )
@@ -134,18 +149,17 @@ while running:
 
         # Useful info
         print(
-            f"Total training time:     {round(time.time() - start_time)} seconds\n"
-            f"Games Played:            {game_count}\n"
-            f"Score:                   {score:5.1f}% {score_diff:+4.1f}%\n"
-            f"Wins / Losses:           {score_tuple_rel[0]:.1f}% / {score_tuple_rel[1]:.1f}%\n"
-            f"Mean Experience Value:   {mean_experience_value:6.3f} {mean_experience_value_diff:+4.1f}%\n"
-            f"Mean Confidence:         {mean_confidence:6.3f}\n"
-            f"Experience Buffer Usage: {learning_robot.experience_buffer_usage * 100:5.1f}%\n"
-            f"Brain Cost:              {brain_cost:4.3f}\n"
-            f"Brain Cost EMA:          {(0 if brain_cost_ema is None else brain_cost_ema):4.3f}\n"
-            f"Synapse Stats: {synapse_stats}\n"
-            f"Output: {robot_brain.output[0,:]}\n"
-            f"Target: {robot_brain.target[0,:]}\n"
+            f"Total training time:     {round(time.time() - start_time)} seconds\nGames"
+            f" Played:            {game_count}\nScore:                   {score:5.1f}%"
+            f" {score_diff:+4.1f}%\nWins / Losses:           {score_tuple_rel[0]:.1f}%"
+            f" / {score_tuple_rel[1]:.1f}%\nMean Experience Value:  "
+            f" {mean_experience_value:6.3f} {mean_experience_value_diff:+4.1f}%\nMean"
+            f" Confidence:         {mean_confidence:6.3f}\nExperience Buffer Usage:"
+            f" {learning_robot.experience_buffer_usage * 100:5.1f}%\nBrain Cost:       "
+            f"       {brain_cost:4.3f}\nBrain Cost EMA:         "
+            f" {(0 if brain_cost_ema is None else brain_cost_ema):4.3f}\nSynapse Stats:"
+            f" {synapse_stats}\nOutput: {robot_brain.output[0,:]}\nTarget:"
+            f" {robot_brain.target[0,:]}\n"
         )
 
         # Update plot data
@@ -180,8 +194,12 @@ while running:
                 f"-regularization={REGULARIZATION}"
             )
             for hidden_layer in BRAIN_TOPOLOGY[1:-1]:
-                settings_str += f"hl-neurons={hidden_layer[0]}{hidden_layer[1].__name__}"
-            pickle.dump(robot_brain, open(f"brain/saved/robot_brain{settings_str}.pickle", "wb"))
+                settings_str += (
+                    f"hl-neurons={hidden_layer[0]}{hidden_layer[1].__name__}"
+                )
+            pickle.dump(
+                robot_brain, open(f"brain/saved/robot_brain{settings_str}.pickle", "wb")
+            )
             plotter.save_image(f"plots/performance-plot{settings_str}.png")
 
             running = False
@@ -192,15 +210,24 @@ while running:
 plotter.save_image("plots/performance-plot.png")
 
 experiences_set = (
-    [experience for experience in learning_robot.experiences if experience["value"] < 0],
-    [experience for experience in learning_robot.experiences if experience["value"] > 0],
+    [
+        experience
+        for experience in learning_robot.experiences
+        if experience["value"] < 0
+    ],
+    [
+        experience
+        for experience in learning_robot.experiences
+        if experience["value"] > 0
+    ],
 )
 for experiences in experiences_set:
     for experience in experiences[-10:]:
         np.set_printoptions(precision=5, suppress=True, floatmode="fixed")
         print(f"action probabilities: {experience['action_probabilities']}")
         print(
-            f"value: {experience['value']:6.3f}             {experience['choice'] * '        '}<{experience['choice']}>"
+            f"value: {experience['value']:6.3f}            "
+            f" {experience['choice'] * '        '}<{experience['choice']}>"
         )
 
         np.set_printoptions(precision=4, suppress=True, floatmode="fixed")
